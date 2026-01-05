@@ -1,0 +1,1786 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>صفحة فيلم</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<!-- إضافة مكتبة hls.js لدعم روابط .m3u8 -->
+<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body, html {
+    height: 100%;
+    font-family: "Segoe UI", Tahoma, sans-serif;
+    color: #fff;
+    background: #000;
+    overflow-x: hidden;
+  }
+  
+  /* إلغاء تأثير اللمس الأزرق في الهواتف */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+
+/* منع اللون الأزرق عند التركيز */
+a, button, div, span {
+  outline: none;
+  -webkit-focus-ring-color: transparent;
+}
+
+/* لجعل النقر يبدو طبيعي بدون خلفية غريبة */
+.item, button {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+  .movie-page {
+    position: relative;
+    width: 100%;
+    height: 600px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: top center;
+  }
+  .movie-page::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 400px;
+    background: linear-gradient(to top, rgba(0,0,0,0.98) 50%, rgba(0,0,0,0) 90%);
+    pointer-events: none;
+  }
+  .content {
+    position: absolute;
+    top: 60%;
+    left: 20px;
+    right: 20px;
+    transform: translateY(-0%);
+    z-index: 1;
+  }
+  .meta {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-size: 0.9rem;
+    opacity: 0.9;
+    margin-bottom: 15px;
+  }
+  .imdb {
+    display: flex;
+    align-items: center;
+    background: #f5c518;
+    color: #000;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: bold;
+    margin-bottom: 5px;
+  }
+  .imdb img { height: 16px; margin-left: 5px; }
+  .sub-meta {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+  }
+  .controls {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    max-width: 400px;
+    margin: 0 auto 20px;
+  }
+  .controls .icon-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-size: 1.2rem;
+    cursor: pointer;
+    opacity: 0.8;
+  }
+  .controls .icon-btn span {
+    font-size: 0.75rem;
+    margin-top: 4px;
+  }
+  .controls .play-btn {
+    background: #e50914;
+    color: #fff;
+    padding: 8px 18px;
+    border-radius: 20px;
+    font-size: 1rem;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    opacity: 1;
+  }
+  .description-wrapper {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    margin-bottom: 30px;
+  }
+  .rating-box {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border: 1px solid #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+  }
+  .description {
+    flex: 1;
+    opacity: 0.9;
+  }
+  .cast-section {
+    margin-bottom: 20px;
+  }
+  .cast-section h3 {
+    font-size: 1rem;
+    margin-bottom: 8px;
+    text-align: right;
+  }
+  .cast-list {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding-bottom: 5px;
+  }
+  .cast-item {
+    flex: 0 0 auto;
+    width: 80px;
+    text-align: center;
+    font-size: 0.75rem;
+  }
+  .cast-item img {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 50%;
+  }
+  .cast-item .name {
+    margin-top: 4px;
+    color: #eee;
+  }
+  .tmdb-logo {
+    margin-bottom: 5px;
+    text-align: center;
+  }
+  
+
+  /* أنماط النافذة المنبثقة لمشغل الفيديو - محدثة */
+  .video-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.85);
+    z-index: 1000;
+    display: none;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .video-modal.active {
+    display: flex;
+  }
+
+  .video-container {
+    width: auto;
+    max-width: 90%;
+    max-height: 70vh;
+    background-color: #1a1c24;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+  }
+
+  .video-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background-color: #1a1c24;
+    border-bottom: 1px solid #2c2f3a;
+  }
+
+  .video-title {
+    font-weight: bold;
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .close-btn {
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    margin-right: -5px;
+  }
+
+  .video-player-wrapper {
+    position: relative;
+    width: 100%;
+    background-color: #000;
+  }
+
+  #videoPlayer {
+    display: block;
+    width: 100%;
+    max-height: 60vh;
+  }
+
+  .video-controls {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: linear-gradient(to top, rgba(0,0,0,0.7), transparent);
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    /* تعيين اتجاه LTR للتحكم في الفيديو حتى في الصفحات RTL */
+    direction: ltr;
+    transition: opacity 0.3s ease;
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .progress-container {
+    width: 100%;
+    height: 3px;
+    background-color: rgba(255, 255, 255, 0.3);
+    border-radius: 1.5px;
+    margin-bottom: 8px;
+    cursor: pointer;
+  }
+
+  .progress-bar {
+    height: 100%;
+    background-color: #e50914;
+    border-radius: 1.5px;
+    width: 20%;
+  }
+
+  .control-buttons {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .left-controls, .right-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .control-btn {
+    background: none;
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+  }
+
+  .play-pause-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid #e50914;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .time-display {
+    font-size: 11px;
+    color: #fff;
+  }
+
+  .fullscreen-btn {
+    margin-left: 8px;
+  }
+
+  .aspect-btn {
+    margin-left: 8px;
+  }
+
+  /* أنماط وضع ملء الشاشة - محدثة */
+  .video-player-wrapper.fullscreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw !important;
+    height: 100vh !important;
+    background: #000;
+    z-index: 2000;
+  }
+
+  .video-player-wrapper.fullscreen #videoPlayer {
+    width: 100% !important;
+    height: 100% !important;
+    max-height: none !important;
+    object-fit: contain !important;
+  }
+
+  .video-player-wrapper.fullscreen #videoPlayer.video-contain {
+    object-fit: contain !important;
+  }
+
+  .video-player-wrapper.fullscreen #videoPlayer.video-cover {
+    object-fit: cover !important;
+  }
+
+  .video-player-wrapper.fullscreen #videoPlayer.video-fill {
+    object-fit: fill !important;
+  }
+
+  /* إخفاء عناصر التحكم في وضع ملء الشاشة */
+  .video-player-wrapper.fullscreen .video-controls {
+    bottom: 0;
+    padding: 15px;
+  }
+
+  .video-player-wrapper.fullscreen .progress-container {
+    height: 5px;
+    margin-bottom: 15px;
+  }
+
+  .video-player-wrapper.fullscreen .control-btn {
+    width: 30px;
+    height: 30px;
+    font-size: 16px;
+  }
+
+  .video-player-wrapper.fullscreen .play-pause-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .video-player-wrapper.fullscreen .time-display {
+    font-size: 14px;
+  }
+  
+  /* تعديل لضمان عرض الفيديو بشكل صحيح في وضع ملء الشاشة على الأجهزة المحمولة */
+  @media screen and (orientation: portrait) {
+    .video-player-wrapper.fullscreen {
+      /* إزالة التدوير والاعتماد على تدوير الجهاز نفسه */
+      transform: none !important;
+      width: 100vw !important;
+      height: 100vh !important;
+    }
+    
+    .video-player-wrapper.fullscreen #videoPlayer {
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: contain !important;
+    }
+  }
+  
+  /* تأكيد على ملء الشاشة في وضع الأفقي */
+  @media screen and (orientation: landscape) {
+    .video-player-wrapper.fullscreen {
+      width: 100vw !important;
+      height: 100vh !important;
+    }
+    
+    .video-player-wrapper.fullscreen #videoPlayer {
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: contain !important;
+    }
+  }
+  .recommend-section {
+  margin-top: 40px;
+}
+.recommend-section h3 {
+  font-size: 1.2em;
+  margin-bottom: 10px;
+  text-align: right;
+}
+.recommend-row {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 10px;
+  scroll-behavior: smooth;
+}
+.recommend-card {
+  flex: 0 0 auto;
+  width: 140px;
+  background-color: #111;
+  border-radius: 8px;
+  overflow: hidden;
+  text-align: center;
+  color: #fff;
+  transition: transform 0.2s;
+}
+.recommend-card:hover {
+  transform: scale(1.05);
+}
+.recommend-card img {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+}
+.recommend-card p {
+  padding: 5px 8px;
+  font-size: 0.9em;
+}
+/* أنماط قسم الإعلانات (التريلرات) - تصميم أفقي معدل مع إخفاء شريط التمرير */
+.trailers-section {
+  margin-top: 40px;
+  margin-bottom: 40px;
+}
+.trailers-section h3 {
+  font-size: 1.2rem;
+  margin-bottom: 15px;
+  text-align: right;
+  color: #fff;
+}
+.trailers-row {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 5px; /* تقليل المسافة أسفل الصف */
+  scroll-behavior: smooth;
+  scrollbar-width: none; /* إخفاء شريط التمرير في Firefox */
+  -ms-overflow-style: none; /* إخفاء شريط التمرير في IE/Edge */
+}
+/* إخفاء شريط التمرير في Chrome/Safari/Opera */
+.trailers-row::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+.trailer-item {
+  flex: 0 0 auto;
+  width: 240px;
+  position: relative;
+  display: block;
+  aspect-ratio: 16/9;
+  background-color: #000;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: transform 0.2s;
+}
+.trailer-item:hover {
+  transform: scale(1.05);
+}
+.trailer-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.trailer-item i.fa-play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 36px;
+  color: white;
+  text-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+}
+.quality-menu {
+  display: none;
+  position: absolute;
+  bottom: 35px;
+  right: 0;
+  background: #1a1c24;
+  border: 1px solid #444;
+  border-radius: 6px;
+  padding: 5px 0;
+  z-index: 1001;
+  min-width: 90px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+}
+
+.quality-menu div {
+  padding: 10px 15px;
+  cursor: pointer;
+  color: #fff;
+  transition: background 0.2s;
+  font-size: 14px;
+  text-align: right;
+}
+
+.quality-menu div:hover {
+  background: #2c2f3a;
+}
+.tmdb-logo {
+  text-align: center;
+  margin-bottom: 15px;
+}
+.tmdb-logo img {
+  max-width: 90%;
+  height: auto;
+  max-height: 140px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 8px rgba(255,255,255,0.4));
+  transition: transform 0.3s ease, filter 0.3s ease;
+}
+.tmdb-logo img:hover {
+  transform: scale(1.05);
+  filter: drop-shadow(0 0 12px rgba(255,255,255,0.7));
+}
+
+</style></head><body>
+
+<div class="movie-page" id="moviePage">
+<div class="content">
+  <div class="meta">
+  	
+    <div class="tmdb-logo" id="movieLogo"></div>
+    
+    <div class="imdb">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg" alt="IMDb">
+      <span id="imdbRating">0.0</span>
+    </div>
+    <div class="sub-meta">
+      <div id="yearGenre">—</div>
+      <div id="runtime">—</div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="icon-btn" title="أعجبني"><i class="fa-regular fa-heart"></i><span>أعجبني</span></div>
+    <div class="icon-btn" title="مشاهدة لاحقاً"><i class="fa-regular fa-bookmark"></i><span>لاحقاً</span></div>
+    <div class="play-btn" title="شاهد الآن" id="watchNowBtn"><i class="fa-solid fa-play"></i><span>شاهد الآن</span></div>
+    <div class="icon-btn" title="تحميل"><i class="fa-solid fa-download"></i><span>تحميل</span></div>
+    <div class="icon-btn" title="مشاهدة الإعلان"><i class="fa-brands fa-youtube"></i><span>إعلان</span></div>
+  </div>
+
+  <div class="description-wrapper">
+    <div class="rating-box">R</div>
+    <div class="description" id="overview">جاري جلب التفاصيل…</div>
+  </div>
+
+  <div class="cast-section">
+    <h3>الممثلون</h3>
+    <div class="cast-list" id="castList"></div>
+  </div>
+  
+  <!-- قسم الإعلانات (التريلرات) - تصميم أفقي مطابق للصورة -->
+<div class="trailers-section">
+  <h3>الإعلانات</h3>
+  <div id="trailersList" class="trailers-row"></div>
+</div>
+  
+  <div class="recommend-section">
+  <h3>مقترحات</h3>
+  <div id="recommendations" class="recommend-row"></div>
+</div>
+</div>
+</div>
+
+<!-- النافذة المنبثقة لمشغل الفيديو - محدثة -->
+<div class="video-modal" id="videoModal">
+<div class="video-container">
+  <div class="video-header">
+    <div class="video-title" id="videoTitle">Warfare</div>
+    <button class="close-btn" id="closeVideoBtn">×</button>
+  </div>
+  <div class="video-player-wrapper" id="videoPlayerWrapper">
+    <video id="videoPlayer" poster="/placeholder.svg?height=720&width=1280" playsinline>
+      <source src="#" type="video/mp4">
+      متصفحك لا يدعم تشغيل الفيديو.
+    </video>
+    <div class="video-controls" id="videoControls">
+      <div class="progress-container" id="progressContainer">
+        <div class="progress-bar" id="progressBar"></div>
+      </div>
+      <div class="control-buttons">
+        <div class="left-controls">
+          <button class="control-btn" id="prevBtn">
+            <i class="fa-solid fa-backward-step"></i>
+          </button>
+          <button class="control-btn play-pause-btn" id="playPauseBtn">
+            <i class="fa-solid fa-pause" id="playPauseIcon"></i>
+          </button>
+          <button class="control-btn" id="nextBtn">
+            <i class="fa-solid fa-forward-step"></i>
+          </button>
+          <div class="time-display">
+            <span id="currentTime">00:00</span> / <span id="totalTime">01:35:28</span>
+          </div>
+        </div>
+        <div class="right-controls">
+  <div class="control-btn quality-dropdown" id="qualityBtn" title="تغيير الجودة" style="position: relative; margin-left: 12px;">
+    <i class="fa-solid fa-sliders"></i>
+    <div class="quality-menu" id="qualityMenu">
+    <!-- سيتم ملء قائمة الجودة ديناميكياً من HLS أو من videoSources -->
+    <div data-quality="1080">1080p</div>
+    <div data-quality="480">480p</div>
+    </div>
+  </div>
+  
+        <div class="right-controls">
+          <button class="control-btn" id="volumeBtn">
+            <i class="fa-solid fa-volume-high"></i>
+          </button>
+          <button class="control-btn aspect-btn" id="aspectBtn" title="تغيير طريقة العرض">
+  <i class="fa-solid fa-tv"></i>
+</button>
+
+          <button class="control-btn fullscreen-btn" id="fullscreenBtn">
+            <i class="fa-solid fa-expand"></i>
+          </button>
+          
+  
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+const API_KEY = "06f120992cfacd7c118f6e7086d23544";
+const params = new URLSearchParams(window.location.search);
+const MOVIE_ID = params.get("id");
+;
+
+// روابط الفيديو حسب الجودة
+const videoSources = {
+	
+  "1080": "z026itQpJuI4ho02NfoQTIxBp5pXcy201vA5Np02oW5viXI"
+};
+
+const movieData = {
+  id: MOVIE_ID,
+  title: "",
+  poster: "",
+  backdrop: ""
+};
+
+let hlsInstance = null;
+let currentQuality = "1080"; // الجودة الافتراضية
+
+fetch(`https://api.themoviedb.org/3/movie/${MOVIE_ID}?api_key=${API_KEY}&language=ar`)
+  .then(res => res.json())
+  .then(data => {
+    // جلب صورة بدون لغة
+fetch(`https://api.themoviedb.org/3/movie/${MOVIE_ID}/images?api_key=${API_KEY}`)
+  .then(res => res.json())
+  .then(images => {
+    const cleanPoster = images.posters.find(p => p.iso_639_1 === null);
+    const imagePath = cleanPoster ? cleanPoster.file_path : data.poster_path;
+
+    if (imagePath) {
+      document.getElementById("moviePage").style.backgroundImage =
+        `url(https://image.tmdb.org/t/p/original${imagePath})`;
+
+      movieData.poster = `https://image.tmdb.org/t/p/original${imagePath}`;
+    }
+  })
+  .catch(err => console.error("فشل في تحميل صورة No Language:", err));
+    document.getElementById("imdbRating").textContent = data.vote_average.toFixed(1);
+    const genres = data.genres.map(g => g.name).join(" • ");
+    document.getElementById("yearGenre").textContent = `${data.release_date.slice(0,4)} • ${genres}`;
+    const h = Math.floor(data.runtime / 60);
+    const m = data.runtime % 60;
+    document.getElementById("runtime").textContent = `${h}س${m>0?m+"د":""}`;
+    document.getElementById("overview").textContent = data.overview;
+
+    movieData.title = data.title;
+    movieData.poster = `https://image.tmdb.org/t/p/original${data.poster_path}`;
+    movieData.backdrop = `https://image.tmdb.org/t/p/original${data.backdrop_path}`;
+    
+    // تحديث عنوان الفيديو في النافذة المنبثقة
+    document.getElementById("videoTitle").textContent = data.title;
+
+// === جلب شعار الفيلم الرسمي باللغة الإنجليزية ===
+fetch(`https://api.themoviedb.org/3/movie/${MOVIE_ID}/images?api_key=${API_KEY}`)
+  .then(res => res.json())
+  .then(images => {
+    // نحاول إيجاد شعار باللغة الإنجليزية أولاً
+    const logo = images.logos.find(l => l.iso_639_1 === "en") || images.logos[0];
+    const logoContainer = document.getElementById("movieLogo");
+    
+    if (logo && logo.file_path) {
+      logoContainer.innerHTML = `
+        <img src="https://image.tmdb.org/t/p/original${logo.file_path}" alt="Movie Logo">
+      `;
+    } else {
+      // إذا لم يوجد شعار، نخفي القسم
+      logoContainer.style.display = "none";
+    }
+  })
+  .catch(err => console.error("❌ فشل في جلب شعار الفيلم:", err));
+  })
+  
+  .catch(err => console.error(err));
+
+fetch(`https://api.themoviedb.org/3/movie/${MOVIE_ID}/credits?api_key=${API_KEY}&language=ar`)
+  .then(res => res.json())
+  .then(credits => {
+    const castList = document.getElementById("castList");
+    credits.cast.slice(0, 10).forEach(member => {
+      const div = document.createElement("div");
+      div.className = "cast-item";
+      div.innerHTML = `
+        <img src="${member.profile_path ? `https://image.tmdb.org/t/p/w185${member.profile_path}` : 'https://f.top4top.io/p_3419eda5r7.jpg'}" alt="${member.name}">
+        <div class="name">${member.name}</div>
+      `;
+      castList.appendChild(div);
+    });
+  })
+  .catch(err => console.error(err));
+
+const likeBtn = document.querySelector('[title="أعجبني"] i');
+const laterBtn = document.querySelector('[title="مشاهدة لاحقاً"] i');
+
+function updateIconStates() {
+  let favorites = JSON.parse(localStorage.getItem("favorites")) || [];
+  let watchLater = JSON.parse(localStorage.getItem("watchLater")) || [];
+
+  if (favorites.some(item => item.id === movieData.id)) {
+    likeBtn.classList.remove("fa-regular");
+    likeBtn.classList.add("fa-solid");
+    likeBtn.style.color = "red";
+  }
+
+  if (watchLater.some(item => item.id === movieData.id)) {
+    laterBtn.classList.remove("fa-regular");
+    laterBtn.classList.add("fa-solid");
+    laterBtn.style.color = "white";
+  }
+}
+
+document.querySelector('[title="أعجبني"]').addEventListener("click", () => {
+  let favorites = JSON.parse(localStorage.getItem("favorites")) || [];
+  if (!favorites.some(item => item.id === movieData.id)) {
+    favorites.push(movieData);
+    localStorage.setItem("favorites", JSON.stringify(favorites));
+    likeBtn.classList.remove("fa-regular");
+    likeBtn.classList.add("fa-solid");
+    likeBtn.style.color = "red";
+  }
+});
+
+document.querySelector('[title="مشاهدة لاحقاً"]').addEventListener("click", () => {
+  let watchLater = JSON.parse(localStorage.getItem("watchLater")) || [];
+  if (!watchLater.some(item => item.id === movieData.id)) {
+    watchLater.push(movieData);
+    localStorage.setItem("watchLater", JSON.stringify(watchLater));
+    laterBtn.classList.remove("fa-regular");
+    laterBtn.classList.add("fa-solid");
+    laterBtn.style.color = "white";
+  }
+});
+
+const checkInterval = setInterval(() => {
+  if (movieData.title) {
+    updateIconStates();
+    clearInterval(checkInterval);
+  }
+}, 200);
+
+// وظائف مشغل الفيديو
+const videoModal = document.getElementById("videoModal");
+const watchNowBtn = document.getElementById("watchNowBtn");
+const closeVideoBtn = document.getElementById("closeVideoBtn");
+const videoPlayer = document.getElementById("videoPlayer");
+const videoPlayerWrapper = document.getElementById("videoPlayerWrapper");
+const videoControls = document.getElementById("videoControls");
+const playPauseBtn = document.getElementById("playPauseBtn");
+const playPauseIcon = document.getElementById("playPauseIcon");
+const progressBar = document.getElementById("progressBar");
+const progressContainer = document.getElementById("progressContainer");
+const currentTimeEl = document.getElementById("currentTime");
+const totalTimeEl = document.getElementById("totalTime");
+const fullscreenBtn = document.getElementById("fullscreenBtn");
+const volumeBtn = document.getElementById("volumeBtn");
+const prevBtn = document.getElementById("prevBtn");
+const nextBtn = document.getElementById("nextBtn");
+const aspectBtn = document.getElementById("aspectBtn");
+let aspectMode = "contain"; // القيمة الافتراضية
+
+// متغيرات لتتبع حالة ملء الشاشة وإخفاء عناصر التحكم
+let isFullscreen = false;
+let controlsVisible = true;
+let controlsTimeout;
+let lastTouchTime = 0;
+
+// تغيير طريقة عرض الفيديو
+aspectBtn.addEventListener("click", () => {
+  if (aspectMode === "contain") {
+    aspectMode = "cover";
+    videoPlayer.classList.remove("video-contain");
+    videoPlayer.classList.add("video-cover");
+    videoPlayer.classList.remove("video-fill");
+    aspectBtn.innerHTML = '<i class="fa-solid fa-up-right-and-down-left-from-center"></i>';
+    aspectBtn.title = "ملء الشاشة";
+  } else if (aspectMode === "cover") {
+    aspectMode = "fill";
+    videoPlayer.classList.remove("video-contain");
+    videoPlayer.classList.remove("video-cover");
+    videoPlayer.classList.add("video-fill");
+    aspectBtn.innerHTML = '<i class="fa-solid fa-crop"></i>';
+    aspectBtn.title = "قص";
+  } else {
+    aspectMode = "contain";
+    videoPlayer.classList.add("video-contain");
+    videoPlayer.classList.remove("video-cover");
+    videoPlayer.classList.remove("video-fill");
+    aspectBtn.innerHTML = '<i class="fa-solid fa-tv"></i>';
+    aspectBtn.title = "تمدد";
+  }
+  
+  // إظهار عناصر التحكم عند استخدام الزر
+  if (isFullscreen) {
+    showControls();
+  }
+});
+
+function buildQualityMenu() {
+  const qualityMenu = document.getElementById("qualityMenu");
+  qualityMenu.innerHTML = "";
+  
+  if (hlsInstance && hlsInstance.levels.length > 0) {
+    // إضافة خيار Auto
+    const autoOption = document.createElement("div");
+    autoOption.setAttribute("data-quality", "-1");
+    autoOption.textContent = "Auto";
+    qualityMenu.appendChild(autoOption);
+    
+    // إضافة جميع الدقات المتاحة
+    hlsInstance.levels.forEach((level, index) => {
+      const option = document.createElement("div");
+      option.setAttribute("data-quality", index.toString());
+      option.textContent = `${level.height}p`;
+      qualityMenu.appendChild(option);
+    });
+    
+    // تمييز الجودة الحالية
+    updateQualitySelection();
+  } else {
+    // إذا لم يكن HLS، استخدم videoSources
+    Object.keys(videoSources).forEach(quality => {
+      const option = document.createElement("div");
+      option.setAttribute("data-quality", quality);
+      option.textContent = `${quality}p`;
+      qualityMenu.appendChild(option);
+    });
+    
+    // تمييز الجودة الحالية
+    const currentOption = qualityMenu.querySelector(`div[data-quality="${currentQuality}"]`);
+    if (currentOption) currentOption.style.color = "red";
+  }
+}
+
+function updateQualitySelection() {
+  const qualityMenu = document.getElementById("qualityMenu");
+  qualityMenu.querySelectorAll("div").forEach(el => el.style.color = "");
+  
+  if (hlsInstance) {
+    const currentLevel = hlsInstance.currentLevel;
+    const selectedOption = qualityMenu.querySelector(`div[data-quality="${currentLevel}"]`);
+    if (selectedOption) {
+      selectedOption.style.color = "red";
+    }
+  } else {
+    const selectedOption = qualityMenu.querySelector(`div[data-quality="${currentQuality}"]`);
+    if (selectedOption) {
+      selectedOption.style.color = "red";
+    }
+  }
+}
+
+watchNowBtn.addEventListener("click", () => {
+  videoModal.classList.add("active");
+  
+  const defaultQuality = "1080";
+  currentQuality = defaultQuality;
+  const videoUrl = "https://stream.mux.com/" + videoSources[defaultQuality] + ".m3u8";
+  
+  // تعيين صورة الخلفية من بيانات الفيلم كصورة مبدئية للفيديو
+  if (movieData.backdrop) {
+    videoPlayer.poster = movieData.backdrop;
+  }
+  
+  // تعيين طريقة العرض الافتراضية
+  videoPlayer.classList.remove("video-contain", "video-cover", "video-fill");
+  videoPlayer.classList.add(`video-${aspectMode}`);
+  
+  if (videoUrl.includes('.m3u8')) {
+    // استخدام HLS.js
+    if (Hls.isSupported()) {
+      if (hlsInstance) {
+        hlsInstance.destroy();
+      }
+      
+      hlsInstance = new Hls({
+        enableWorker: true,
+        lowLatencyMode: true,
+      });
+      
+      hlsInstance.loadSource(videoUrl);
+      hlsInstance.attachMedia(videoPlayer);
+      
+      hlsInstance.on(Hls.Events.MANIFEST_PARSED, function() {
+        console.log("[v0] HLS manifest parsed, levels:", hlsInstance.levels.length);
+        
+        // بناء قائمة الجودة من HLS
+        buildQualityMenu();
+        
+        // استرجاع الوقت المحفوظ
+        const savedTime = getPlaybackTime(MOVIE_ID);
+        if (savedTime > 10) {
+          videoPlayer.currentTime = savedTime;
+          
+          // عرض تلميح الاستئناف
+          const hint = document.createElement('div');
+          hint.style.cssText = 'position:fixed; top:20px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.8); color:white; padding:8px 16px; border-radius:5px; z-index:10000; font-size:13px;';
+          hint.textContent = `⏩ استئناف من ${formatTime(savedTime)}`;
+          document.body.appendChild(hint);
+          setTimeout(() => { if(hint.parentNode) document.body.removeChild(hint); }, 3000);
+        }
+        
+        // تشغيل الفيديو
+        videoPlayer.play().then(() => {
+          playPauseIcon.className = "fa-solid fa-pause";
+        }).catch(e => console.error("خطأ في تشغيل الفيديو:", e));
+      });
+      
+      hlsInstance.on(Hls.Events.LEVEL_SWITCHED, function(event, data) {
+        console.log("[v0] Level switched to:", data.level);
+        updateQualitySelection();
+      });
+      
+      hlsInstance.on(Hls.Events.ERROR, function(event, data) {
+        console.error("[v0] HLS error:", data);
+        if (data.fatal) {
+          switch(data.type) {
+            case Hls.ErrorTypes.NETWORK_ERROR:
+              console.log("[v0] Network error, trying to recover...");
+              hlsInstance.startLoad();
+              break;
+            case Hls.ErrorTypes.MEDIA_ERROR:
+              console.log("[v0] Media error, trying to recover...");
+              hlsInstance.recoverMediaError();
+              break;
+            default:
+              console.log("[v0] Fatal error, destroying HLS instance");
+              hlsInstance.destroy();
+              break;
+          }
+        }
+      });
+      
+    } else if (videoPlayer.canPlayType('application/vnd.apple.mpegurl')) {
+      // دعم HLS الأصلي في Safari
+      videoPlayer.src = videoUrl;
+      videoPlayer.load();
+      
+      const savedTime = getPlaybackTime(MOVIE_ID);
+      if (savedTime > 10) {
+        videoPlayer.addEventListener('loadedmetadata', function() {
+          videoPlayer.currentTime = savedTime;
+          
+          const hint = document.createElement('div');
+          hint.style.cssText = 'position:fixed; top:20px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.8); color:white; padding:8px 16px; border-radius:5px; z-index:10000; font-size:13px;';
+          hint.textContent = `⏩ استئناف من ${formatTime(savedTime)}`;
+          document.body.appendChild(hint);
+          setTimeout(() => { if(hint.parentNode) document.body.removeChild(hint); }, 3000);
+        }, { once: true });
+      }
+      
+      videoPlayer.play().then(() => {
+        playPauseIcon.className = "fa-solid fa-pause";
+      }).catch(e => console.error("خطأ في تشغيل الفيديو:", e));
+      
+      // بناء قائمة الجودة من videoSources
+      buildQualityMenu();
+    }
+  } else {
+    // رابط mp4 عادي
+    videoPlayer.src = videoUrl;
+    videoPlayer.load();
+    
+    const savedTime = getPlaybackTime(MOVIE_ID);
+    if (savedTime > 10) {
+      videoPlayer.addEventListener('loadedmetadata', function() {
+        videoPlayer.currentTime = savedTime;
+        
+        const hint = document.createElement('div');
+        hint.style.cssText = 'position:fixed; top:20px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.8); color:white; padding:8px 16px; border-radius:5px; z-index:10000; font-size:13px;';
+        hint.textContent = `⏩ استئناف من ${formatTime(savedTime)}`;
+        document.body.appendChild(hint);
+        setTimeout(() => { if(hint.parentNode) document.body.removeChild(hint); }, 3000);
+      }, { once: true });
+    }
+    
+    videoPlayer.play().then(() => {
+      playPauseIcon.className = "fa-solid fa-pause";
+    }).catch(e => console.error("خطأ في تشغيل الفيديو:", e));
+    
+    // بناء قائمة الجودة من videoSources
+    buildQualityMenu();
+  }
+  
+  // تحديث مدة الفيديو الكلية
+  videoPlayer.onloadedmetadata = () => {
+    totalTimeEl.textContent = formatTime(videoPlayer.duration);
+  };
+});
+
+// إغلاق النافذة المنبثقة
+closeVideoBtn.addEventListener("click", () => {
+  savePlaybackTime(MOVIE_ID, videoPlayer.currentTime);
+  videoModal.classList.remove("active");
+  videoPlayer.pause();
+  
+  if (hlsInstance) {
+    hlsInstance.destroy();
+    hlsInstance = null;
+  }
+  
+  // إذا كان في وضع ملء الشاشة، قم بإلغائه
+  if (isFullscreen) {
+    exitFullscreen();
+  }
+});
+
+// تشغيل/إيقاف الفيديو
+playPauseBtn.addEventListener("click", togglePlayPause);
+
+function togglePlayPause() {
+  if (videoPlayer.paused) {
+    videoPlayer.play();
+    playPauseIcon.className = "fa-solid fa-pause";
+  } else {
+    videoPlayer.pause();
+    playPauseIcon.className = "fa-solid fa-play";
+  }
+}
+
+// تحديث شريط التقدم
+videoPlayer.addEventListener("timeupdate", () => {
+  const percentage = (videoPlayer.currentTime / videoPlayer.duration) * 100;
+  progressBar.style.width = `${percentage}%`;
+  currentTimeEl.textContent = formatTime(videoPlayer.currentTime);
+  
+  // حفظ وقت المشاهدة كل 10 ثوانٍ
+  if (Math.floor(videoPlayer.currentTime) % 10 === 0) {
+    savePlaybackTime(MOVIE_ID, videoPlayer.currentTime);
+  }
+});
+
+// تغيير موضع التشغيل عند النقر على شريط التقدم
+progressContainer.addEventListener("click", (e) => {
+  const rect = progressContainer.getBoundingClientRect();
+  const pos = (e.clientX - rect.left) / rect.width;
+  videoPlayer.currentTime = pos * videoPlayer.duration;
+});
+
+// ======== تحسين وظائف إظهار/إخفاء عناصر التحكم ========
+
+// إظهار عناصر التحكم
+function showControls() {
+  if (videoControls) {
+    videoControls.style.opacity = "1";
+    videoControls.style.pointerEvents = "auto";
+    controlsVisible = true;
+    
+    // إعادة تعيين مؤقت الإخفاء التلقائي
+    clearTimeout(controlsTimeout);
+    
+    // فقط قم بتعيين مؤقت إذا كان الفيديو قيد التشغيل
+    if (!videoPlayer.paused && isFullscreen) {
+      controlsTimeout = setTimeout(hideControls, 3000); // إخفاء بعد 3 ثوانٍ
+    }
+  }
+}
+
+// إخفاء عناصر التحكم
+function hideControls() {
+  if (isFullscreen && videoControls) {
+    videoControls.style.opacity = "0";
+    videoControls.style.pointerEvents = "none";
+    controlsVisible = false;
+  }
+}
+
+// ======== تحسين مستمعات الأحداث للتعامل مع النقر ========
+
+// إضافة مستمع حدث للنقر على الشاشة بأكملها في وضع ملء الشاشة
+document.addEventListener("click", (e) => {
+  if (isFullscreen) {
+    // تجاهل النقرات على عناصر التحكم نفسها
+    if (e.target.closest('.video-controls')) {
+      return;
+    }
+    
+    // إظهار عناصر التحكم إذا كانت مخفية
+    if (!controlsVisible) {
+      showControls();
+    } else {
+      // إخفاء عناصر التحكم إذا كانت ظاهرة ولم يتم النقر عليها
+      hideControls();
+    }
+    
+    // منع تشغيل/إيقاف الفيديو عند النقر في وضع ملء الشاشة
+    e.preventDefault();
+    e.stopPropagation();
+  }
+});
+
+// في الوضع العادي (غير ملء الشاشة)، نستخدم النقر لتشغيل/إيقاف الفيديو
+videoPlayer.addEventListener("click", (e) => {
+  if (!isFullscreen) {
+    togglePlayPause();
+    e.stopPropagation();
+  }
+});
+
+// إضافة دعم للأجهزة اللمسية
+document.addEventListener("touchstart", (e) => {
+  if (isFullscreen) {
+    // تجاهل النقرات على عناصر التحكم نفسها
+    if (e.target.closest('.video-controls')) {
+      return;
+    }
+    
+    const now = new Date().getTime();
+    const timeSince = now - lastTouchTime;
+    
+    if (timeSince < 300) {
+      // نقرة مزدوجة سريعة - تشغيل/إيقاف الفيديو
+      togglePlayPause();
+    } else {
+      // نقرة واحدة - إظهار/إخفاء عناصر التحكم
+      if (!controlsVisible) {
+        showControls();
+      } else {
+        hideControls();
+      }
+    }
+    
+    lastTouchTime = now;
+  }
+});
+
+// وظيفة تبديل وضع ملء الشاشة - محدثة
+function toggleFullscreen() {
+  if (!isFullscreen) {
+    enterFullscreen();
+  } else {
+    exitFullscreen();
+  }
+}
+
+// دخول وضع ملء الشاشة
+function enterFullscreen() {
+  // تفعيل وضع ملء الشاشة
+  videoPlayerWrapper.classList.add("fullscreen");
+  
+  // تغيير أيقونة زر ملء الشاشة
+  fullscreenBtn.innerHTML = '<i class="fa-solid fa-compress"></i>';
+  
+  // تعيين المتغير لتتبع الحالة
+  isFullscreen = true;
+  
+  // تعيين الفئة الصحيحة للفيديو بناءً على وضع العرض الحالي
+  videoPlayer.classList.remove("video-contain", "video-cover", "video-fill");
+  videoPlayer.classList.add(`video-${aspectMode}`);
+  
+  // إظهار عناصر التحكم ثم إخفاؤها تلقائيًا بعد فترة
+  showControls();
+  
+  // استخدام واجهة برمجة التطبيقات الأصلية لملء الشاشة للمتصفح
+  try {
+    if (videoPlayerWrapper.requestFullscreen) {
+      videoPlayerWrapper.requestFullscreen();
+    } else if (videoPlayerWrapper.webkitRequestFullscreen) {
+      videoPlayerWrapper.webkitRequestFullscreen();
+    } else if (videoPlayerWrapper.mozRequestFullScreen) {
+      videoPlayerWrapper.mozRequestFullScreen();
+    } else if (videoPlayerWrapper.msRequestFullscreen) {
+      videoPlayerWrapper.msRequestFullscreen();
+    }
+  } catch (e) {
+    console.error("خطأ في دخول وضع ملء الشاشة:", e);
+  }
+  
+  // قفل الشاشة في الوضع الأفقي إذا كان الجهاز يدعم ذلك
+  if (screen.orientation && screen.orientation.lock) {
+    screen.orientation.lock('landscape').catch(e => {
+      console.log('لا يمكن قفل الاتجاه:', e);
+    });
+  }
+  
+  // منع التمرير في الصفحة
+  document.body.style.overflow = 'hidden';
+  
+  // تأكد من أن الفيديو يملأ الشاشة
+  setTimeout(() => {
+    videoPlayer.style.width = '100%';
+    videoPlayer.style.height = '100%';
+  }, 300);
+}
+
+// الخروج من وضع ملء الشاشة
+function exitFullscreen() {
+  // إلغاء وضع ملء الشاشة
+  videoPlayerWrapper.classList.remove("fullscreen");
+  
+  // إعادة أيقونة زر ملء الشاشة
+  fullscreenBtn.innerHTML = '<i class="fa-solid fa-expand"></i>';
+  
+  // تعيين المتغير لتتبع الحالة
+  isFullscreen = false;
+  controlsVisible = true;
+  
+  // إزالة الفئات
+  videoPlayer.classList.remove("video-contain", "video-cover", "video-fill");
+  
+  // إزالة فئة الإخفاء من عناصر التحكم
+  videoControls.style.opacity = "1";
+  videoControls.style.pointerEvents = "auto";
+  
+  // إلغاء مؤقت إخفاء عناصر التحكم
+  clearTimeout(controlsTimeout);
+  
+  // الخروج من وضع ملء الشاشة الأصلي للمتصفح
+  try {
+    if (document.exitFullscreen) {
+      document.exitFullscreen();
+    } else if (document.webkitExitFullscreen) {
+      document.webkitExitFullscreen();
+    } else if (document.mozCancelFullScreen) {
+      document.mozCancelFullScreen();
+    } else if (document.msExitFullscreen) {
+      document.msExitFullscreen();
+    }
+  } catch (e) {
+    console.error("خطأ في الخروج من وضع ملء الشاشة:", e);
+  }
+  
+  // إلغاء قفل الاتجاه
+  if (screen.orientation && screen.orientation.unlock) {
+    screen.orientation.unlock();
+  }
+  
+  // السماح بالتمرير في الصفحة
+  document.body.style.overflow = '';
+  
+  // إعادة تعيين أبعاد الفيديو
+  videoPlayer.style.width = '';
+  videoPlayer.style.height = '';
+}
+
+// تفعيل زر ملء الشاشة
+fullscreenBtn.addEventListener("click", toggleFullscreen);
+
+// التحكم في الصوت
+volumeBtn.addEventListener("click", () => {
+  if (videoPlayer.muted) {
+    videoPlayer.muted = false;
+    volumeBtn.innerHTML = '<i class="fa-solid fa-volume-high"></i>';
+  } else {
+    videoPlayer.muted = true;
+    volumeBtn.innerHTML = '<i class="fa-solid fa-volume-xmark"></i>';
+  }
+});
+
+// تنسيق الوقت (تحويل الثواني إلى تنسيق HH:MM:SS)
+function formatTime(seconds) {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  
+  return [
+    h > 0 ? h.toString().padStart(2, '0') : '00',
+    m.toString().padStart(2, '0'),
+    s.toString().padStart(2, '0')
+  ].join(':');
+}
+
+// إضافة وظائف أزرار التقديم والإرجاع
+prevBtn.addEventListener("click", () => {
+  videoPlayer.currentTime = Math.max(0, videoPlayer.currentTime - 10);
+  showControls(); // إظهار عناصر التحكم عند استخدامها
+});
+
+nextBtn.addEventListener("click", () => {
+  videoPlayer.currentTime = Math.min(videoPlayer.duration, videoPlayer.currentTime + 10);
+  showControls(); // إظهار عناصر التحكم عند استخدامها
+});
+
+// إغلاق النافذة المنبثقة عند النقر خارجها
+videoModal.addEventListener("click", (e) => {
+  if (e.target === videoModal) {
+    savePlaybackTime(MOVIE_ID, videoPlayer.currentTime);
+    videoModal.classList.remove("active");
+    videoPlayer.pause();
+    
+    if (hlsInstance) {
+      hlsInstance.destroy();
+      hlsInstance = null;
+    }
+    
+    // إذا كان في وضع ملء الشاشة، قم بإلغائه
+    if (isFullscreen) {
+      exitFullscreen();
+    }
+  }
+});
+
+// إضافة استجابة لمفاتيح لوحة المفاتيح
+document.addEventListener("keydown", (e) => {
+  if (videoModal.classList.contains("active")) {
+    if (e.key === "Escape") {
+      // إذا كان في وضع ملء الشاشة، قم بإلغائه فقط
+      if (isFullscreen) {
+        exitFullscreen();
+      } else {
+        // وإلا قم بإغلاق النافذة المنبثقة
+        savePlaybackTime(MOVIE_ID, videoPlayer.currentTime);
+        videoModal.classList.remove("active");
+        videoPlayer.pause();
+        
+        if (hlsInstance) {
+          hlsInstance.destroy();
+          hlsInstance = null;
+        }
+      }
+    } else if (e.key === " ") {
+      togglePlayPause();
+      e.preventDefault();
+    } else if (e.key === "f") {
+      toggleFullscreen();
+      e.preventDefault();
+    }
+    
+    // إظهار عناصر التحكم عند استخدام أي مفتاح في وضع ملء الشاشة
+    if (isFullscreen) {
+      showControls();
+    }
+  }
+});
+
+// إظهار عناصر التحكم عند تحريك الماوس في وضع ملء الشاشة
+videoPlayerWrapper.addEventListener("mousemove", () => {
+  if (isFullscreen) {
+    showControls();
+  }
+});
+
+// مراقبة تغييرات وضع ملء الشاشة من خلال API المتصفح
+document.addEventListener("fullscreenchange", handleFullscreenChange);
+document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
+document.addEventListener("mozfullscreenchange", handleFullscreenChange);
+document.addEventListener("MSFullscreenChange", handleFullscreenChange);
+
+function handleFullscreenChange() {
+  // إذا تم إلغاء وضع ملء الشاشة من خلال المتصفح (مثل الضغط على Esc)
+  if (!document.fullscreenElement && 
+      !document.webkitFullscreenElement && 
+      !document.mozFullScreenElement && 
+      !document.msFullscreenElement) {
+    
+    if (isFullscreen) {
+      // إعادة تعيين واجهة المستخدم
+      exitFullscreen();
+    }
+  }
+}
+
+// مراقبة تغييرات اتجاه الشاشة
+window.addEventListener('orientationchange', function() {
+  if (isFullscreen) {
+    // تأكد من أن الفيديو يملأ الشاشة بشكل صحيح بعد تغيير الاتجاه
+    setTimeout(() => {
+      videoPlayer.style.width = '100%';
+      videoPlayer.style.height = '100%';
+    }, 300);
+  }
+});
+
+// إضافة خاصية playsinline للفيديو لتحسين التوافق مع iOS
+videoPlayer.setAttribute('playsinline', '');
+videoPlayer.setAttribute('webkit-playsinline', '');
+
+// إخفاء عناصر التحكم تلقائيًا بعد بدء تشغيل الفيديو في وضع ملء الشاشة
+videoPlayer.addEventListener('playing', () => {
+  if (isFullscreen) {
+    controlsTimeout = setTimeout(hideControls, 3000);
+  }
+});
+
+// قسم الأفلام المقترحة
+const suggestedMovieIds = [
+  927254, 1382823, 117578, 139105, 119772, 123349, 14072, 19404, 635302, 1400782,
+1109086, 46298, 1038392, 1292626, 1100800, 250307, 941109,  1236470, 1512581,
+1242404, 286801, 864692, 872906, 960876, 256721, 243761, 52814, 278011, 95057,
+71914, 84773, 1359, 296502, 274875, 258190, 100088, 228305, 763215, 725201,
+726209, 248416, 219760, 993710, 157239, 297058, 1242434, 1078605, 405774, 696806,
+646380, 1005331, 512195, 803796, 256317, 77169, 1083433, 1242011, 253372, 240558, 79744, 136248, 248852, 258462, 1398, 229958, 133748,
+256317, 261747, 1250, 111980, 215995, 37854, 235930, 615453, 62710,
+458594, 661374, 546554, 249768, 49835, 81356, 414906, 207332, 61889, 94796, 132752, 259909, 232132, 285594,  524, 194583, 76773,
+84299, 385687, 385128, 337339, 168259, 9615, 82992, 51497, 13804, 584,
+9799, 196890, 221262, 1190511, 359940, 7485, 85723, 82452, 10196, 71912,
+60735, 41727, 1622, 34524, 1412, 66732, 1405, 63333, 4607, 46952,
+48866, 71712, 70788, 980477, 1282404, 238084, 222766, 87108, 1012290, 86000,
+14030, 108978, 138501, 138171, 64464, 76025, 124364, 1170841, 1324119, 1316416,
+1401287, 1224392, 1226409, 1353543, 842924, 70523, 241388, 288472, 276502,
+71728, 116135, 88803, 245981, 80752, 60059, 22609, 95603, 273940, 256400, 1311031, 92783, 92782, 282298, 92749, 88329, 88396,
+85271, 120911, 70453, 102619, 115004,  72844, 4613, 119051,
+106541, 135814, 131927, 254013, 156390, 156716, 208825, 146176, 334175,
+44977, 360814, 763118, 1257960, 1014214, 617126, 283123, 46529, 801688, 720557,
+433498, 1234821, 1071585, 575265, 870028, 911430, 23168, 1061474, 552524, 1457374,
+665685, 275269, 1011477, 746036, 1119878, 1126915, 574475, 1246, 395992, 846422,
+1204027, 749170, 61, 713364, 1098006, 1087891, 2000, 90802, 541671,
+574060, 378064, 1100988, 936622, 472221, 93405, 398173, 770906, 630804, 1008368,
+1087192, 278927, 635129, 224882, 249117, 1203307, 986056, 668489, 1233413, 1143407,
+822119, 950396, 1104845, 1084199, 1361622, 1410082, 1252377, 710295, 996821, 365177,
+1154304, 1201753, 1002088, 1186532, 516729, 929204, 603692, 458156, 324552, 245891,
+533535, 609681, 894205, 524434, 566525, 497698, 299534, 299537, 640146, 363088,
+299536, 284054, 284053, 634649, 429617, 324857, 315635, 102382, 1930, 774752,
+283995, 118340, 453395, 284052, 271110, 102899, 99861, 100402, 76338, 24428,
+1771, 10195, 1724, 298618, 495764, 594767, 436270, 297802, 791373, 141052,
+464052, 537055, 297762, 436969, 297761, 209112, 49521, 68721, 10138, 1726,
+339259, 950387, 321612, 11324, 449924, 365222, 37472, 14756, 166426, 1865,
+285, 58, 22, 37799, 9806, 758323, 807172, 506815, 760195, 60243, 188927,
+13475, 76600, 19995, 2062, 489, 783, 166428, 82702, 10191, 752, 2503,
+111, 393, 24, 12405, 862, 745, 12445, 6977, 578, 205, 107, 47327,
+8587, 335984, 78, 949, 12477, 272, 189, 490, 562, 14160, 13223,
+1892, 16869, 613, 670, 197, 98, 705, 914, 1578, 311, 762, 497,
+1124, 829, 387, 641, 185, 947, 1422, 10681, 423, 18875, 126889, 49849,
+348, 857, 103, 280, 10193, 28, 101, 121, 13, 807, 274, 567,
+603, 335, 598, 120, 769, 550, 346, 27205, 122, 155, 424, 389,
+680, 962558, 429, 240, 238, 278, 892429, 587412, 1035048, 1138194, 1102493,
+1249289, 604685, 1126166, 939243, 581600, 247718, 777443, 1197306, 762509, 1333100,
+243881, 283123, 558449, 912649, 194764, 957452, 614933, 338952, 423204, 1059345,
+1001311, 823464, 1399, 1396, 231100, 84958, 1246596, 74823, 90802,
+2288, 231503, 44217, 218589, 194764, 246621
+
+];
+
+// اختيار 15 فيلم عشوائي من القائمة
+const selectedSuggestions = suggestedMovieIds
+  .sort(() => 0.5 - Math.random())
+  .slice(0, 15);
+
+const recommendationsContainer = document.getElementById("recommendations");
+
+selectedSuggestions.forEach(id => {
+  fetch(`https://api.themoviedb.org/3/movie/${id}?api_key=${API_KEY}&language=ar`)
+    .then(res => res.json())
+    .then(data => {
+      // تجاهل الأفلام التي لا تحتوي على صورة
+      if (!data.poster_path) return;
+
+      // إنشاء الكارت كرابط <a>
+      const card = document.createElement("a");
+      card.className = "recommend-card";
+      card.href = `go:${data.id}`;
+      card.innerHTML = `
+        <img src="https://image.tmdb.org/t/p/w500${data.poster_path}" alt="${data.title}">
+      `;
+      recommendationsContainer.appendChild(card);
+    })
+    .catch(err => console.error("فشل تحميل فيلم:", err));
+});
+
+// جلب وعرض الإعلانات (التريلرات) بتصميم أفقي معدل
+fetch(`https://api.themoviedb.org/3/movie/${MOVIE_ID}/videos?api_key=${API_KEY}`)
+  .then(res => res.json())
+  .then(data => {
+    const trailersList = document.getElementById("trailersList");
+    
+    // تصفية الفيديوهات للحصول على الإعلانات من يوتيوب فقط
+    const youtubeTrailers = data.results
+      .filter(video => 
+        video.site === "YouTube" && 
+        (video.type === "Trailer" || video.type === "Teaser") &&
+        video.key
+      )
+      .slice(0, 3); // تحديد العدد إلى 3 إعلانات كحد أقصى
+    
+    // إذا لم تكن هناك إعلانات، قم بإخفاء القسم
+    if (youtubeTrailers.length === 0) {
+      document.querySelector('.trailers-section').style.display = 'none';
+      return;
+    }
+    
+    // إنشاء عناصر الإعلانات
+    youtubeTrailers.forEach(trailer => {
+      const trailerElement = document.createElement("a");
+      trailerElement.href = `https://www.youtube.com/watch?v=${trailer.key}`;
+      trailerElement.target = "_blank";
+      trailerElement.rel = "noopener noreferrer";
+      trailerElement.className = "trailer-item";
+      
+      trailerElement.innerHTML = `
+        <img 
+          src="https://img.youtube.com/vi/${trailer.key}/maxresdefault.jpg" 
+          alt="${trailer.name}" 
+          onerror="this.src='https://img.youtube.com/vi/${trailer.key}/hqdefault.jpg'"
+        />
+        <i class="fa-solid fa-play"></i>
+      `;
+      
+      trailersList.appendChild(trailerElement);
+    });
+  })
+  .catch(err => {
+    console.error("خطأ في جلب الإعلانات:", err);
+    document.querySelector('.trailers-section').style.display = 'none';
+  });
+
+const qualityBtn = document.getElementById("qualityBtn");
+const qualityMenu = document.getElementById("qualityMenu");
+
+qualityBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  qualityMenu.style.display = qualityMenu.style.display === "block" ? "none" : "block";
+});
+
+document.addEventListener("click", () => {
+  qualityMenu.style.display = "none";
+});
+
+qualityMenu.addEventListener("click", (e) => {
+  const option = e.target.closest("div[data-quality]");
+  if (!option) return;
+  
+  const selectedQuality = option.getAttribute("data-quality");
+  const currentTime = videoPlayer.currentTime;
+  const isPlaying = !videoPlayer.paused;
+  
+  if (hlsInstance) {
+    // استخدام HLS
+    if (selectedQuality === "-1") {
+      // Auto quality
+      hlsInstance.currentLevel = -1;
+    } else {
+      hlsInstance.currentLevel = parseInt(selectedQuality);
+    }
+    
+    // تحديث واجهة المستخدم فوراً
+    qualityMenu.querySelectorAll("div").forEach(el => el.style.color = "");
+    option.style.color = "red";
+    
+  } else {
+    // استخدام videoSources العادي
+    currentQuality = selectedQuality;
+    const newUrl = videoSources[selectedQuality];
+    
+    if (newUrl.includes('.m3u8')) {
+      // إذا كان الرابط الجديد HLS، نحتاج لإنشاء HLS instance
+      if (Hls.isSupported()) {
+        hlsInstance = new Hls({
+          enableWorker: true,
+          lowLatencyMode: true,
+        });
+        
+        hlsInstance.loadSource(newUrl);
+        hlsInstance.attachMedia(videoPlayer);
+        
+        hlsInstance.on(Hls.Events.MANIFEST_PARSED, function() {
+          videoPlayer.currentTime = currentTime;
+          if (isPlaying) {
+            videoPlayer.play();
+          }
+          buildQualityMenu();
+        });
+        
+        hlsInstance.on(Hls.Events.LEVEL_SWITCHED, function(event, data) {
+          updateQualitySelection();
+        });
+        
+      } else if (videoPlayer.canPlayType('application/vnd.apple.mpegurl')) {
+        videoPlayer.src = newUrl;
+        videoPlayer.load();
+        videoPlayer.currentTime = currentTime;
+        if (isPlaying) {
+          videoPlayer.play();
+        }
+      }
+    } else {
+      // رابط mp4 عادي
+      videoPlayer.src = newUrl;
+      videoPlayer.load();
+      videoPlayer.currentTime = currentTime;
+      if (isPlaying) {
+        videoPlayer.play();
+      }
+    }
+    
+    // تحديث واجهة المستخدم فوراً
+    qualityMenu.querySelectorAll("div").forEach(el => el.style.color = "");
+    option.style.color = "red";
+  }
+  
+  qualityMenu.style.display = "none";
+});
+
+// وظائف استئناف المشاهدة
+function getMovieStorageKey(movieId) {
+    return `movie_${movieId}_progress`;
+}
+
+function savePlaybackTime(movieId, currentTime) {
+    if (currentTime < 10 || (videoPlayer.duration && currentTime / videoPlayer.duration > 0.95)) {
+        return;
+    }
+    const storageKey = getMovieStorageKey(movieId);
+    localStorage.setItem(storageKey, currentTime.toString());
+}
+
+function getPlaybackTime(movieId) {
+    const storageKey = getMovieStorageKey(movieId);
+    const savedTime = localStorage.getItem(storageKey);
+    return savedTime ? parseFloat(savedTime) : 0;
+}
+
+function clearPlaybackTime(movieId) {
+    const storageKey = getMovieStorageKey(movieId);
+    localStorage.removeItem(storageKey);
+}
+
+// حفظ عند إنهاء الفيديو
+videoPlayer.addEventListener("ended", function() {
+    clearPlaybackTime(MOVIE_ID);
+});
+
+window.addEventListener('beforeunload', function() {
+    if (!videoPlayer.paused) {
+        savePlaybackTime(MOVIE_ID, videoPlayer.currentTime);
+    }
+});
+
+// دالة لحفظ بيانات الفيلم في localStorage
+function saveMovieDataToStorage() {
+    try {
+        const movieDataToSave = {
+            id: MOVIE_ID,
+            title: movieData.title,
+            poster: movieData.poster || movieData.backdrop,
+            duration: movieData.runtime ? movieData.runtime * 60 : 120 * 60
+        };
+        
+        // حفظ في localStorage
+        const allMovies = JSON.parse(localStorage.getItem('allMovies')) || {};
+        allMovies[MOVIE_ID] = movieDataToSave;
+        localStorage.setItem('allMovies', JSON.stringify(allMovies));
+        
+        console.log('✅ تم حفظ بيانات الفيلم:', movieData.title);
+    } catch (error) {
+        console.error('❌ خطأ في حفظ بيانات الفيلم:', error);
+    }
+}
+
+// حفظ بيانات الفيلم بعد تحميلها
+setTimeout(() => {
+    if (movieData.title && movieData.title !== "") {
+        saveMovieDataToStorage();
+    }
+}, 2000);
+
+</script>
+
+<!-- نافذة اختيار جودة التحميل -->
+<div id="downloadModal" style="
+  display:none;
+  position:fixed;
+  top:0; left:0; width:100%; height:100%;
+  background:rgba(0,0,0,0.7);
+  justify-content:center;
+  align-items:center;
+  z-index:9999;
+">
+  <div style="
+    background:#1a1c24;
+    padding:20px;
+    border-radius:12px;
+    text-align:center;
+    color:#fff;
+    width:260px;
+    box-shadow:0 6px 20px rgba(0,0,0,0.6);
+  ">
+    <h3 style="margin-bottom:12px;">اختر جودة التحميل</h3>
+    <div id="downloadOptions" style="display:flex; flex-direction:column; gap:10px;"></div>
+    <button id="closeDownloadModal" style="
+      margin-top:14px;
+      background:#e50914;
+      color:#fff;
+      border:none;
+      padding:8px 16px;
+      border-radius:6px;
+      cursor:pointer;
+    ">إلغاء</button>
+  </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const downloadModal = document.getElementById("downloadModal");
+  const downloadOptions = document.getElementById("downloadOptions");
+  const closeDownloadModal = document.getElementById("closeDownloadModal");
+  const downloadBtn = document.querySelector('[title="تحميل"]');
+
+  if (!downloadBtn) {
+    console.error("⚠️ لم أجد زر التحميل في الصفحة.");
+    return;
+  }
+
+  downloadBtn.addEventListener("click", function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    downloadOptions.innerHTML = "";
+
+    if (!window.videoSources) {
+      downloadOptions.innerHTML = "<div>❌ لا توجد روابط تحميل.</div>";
+    } else {
+      Object.keys(videoSources).forEach(q => {
+        const btn = document.createElement("button");
+        btn.textContent = q + "p";
+        btn.style.cssText = "background:#2c2f3a;color:#fff;border:none;padding:10px;border-radius:6px;cursor:pointer;";
+        btn.addEventListener("click", () => {
+          const link = document.createElement("a");
+          link.href = videoSources[q];
+          link.download = (window.movieData?.title || "movie") + "_" + q + "p.mp4";
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          downloadModal.style.display = "none";
+        });
+        downloadOptions.appendChild(btn);
+      });
+    }
+
+    downloadModal.style.display = "flex";
+  });
+
+  closeDownloadModal.addEventListener("click", () => downloadModal.style.display = "none");
+  downloadModal.addEventListener("click", (e) => { if (e.target === downloadModal) downloadModal.style.display = "none"; });
+});
+</script>
+
+</body>
+</html>

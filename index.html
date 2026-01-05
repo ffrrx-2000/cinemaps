@@ -1,0 +1,1582 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>منصة مشاهدة الأفلام والمسلسلات</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        /* استيراد الخطوط */
+        @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap');
+        
+        /* إعدادات عامة */
+        :root { 
+            --accent-color: #ff3333; 
+        }
+ 
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        a, button, div, span {
+            outline: none;
+            -webkit-focus-ring-color: transparent;
+        }
+
+        .item, button {
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        
+        body {
+            background-color: #0a0a0a;
+            color: white;
+            direction: rtl;
+            font-family: 'Tajawal', sans-serif;
+            overflow-x: hidden;
+            padding-bottom: 90px; /* مسافة سفلية لمنع تغطية القائمة للمحتوى */
+        }
+
+        /* ========================================= */
+        /* بداية تنسيقات القائمة السفلية الحديثة     */
+        /* ========================================= */
+        .bottom-nav { 
+            position: fixed; 
+            bottom: 0; 
+            left: 0; 
+            right: 0; 
+            width: 100%; 
+            height: 65px; 
+            background: rgba(18, 18, 18, 0.95); 
+            backdrop-filter: blur(8px); 
+            display: flex; 
+            justify-content: space-around; 
+            align-items: center; 
+            border-top: 1px solid #222; 
+            border-radius: 20px 20px 0 0; 
+            box-shadow: 0 -4px 15px rgba(0,0,0,0.5); 
+            z-index: 1000; 
+        }
+        .bottom-nav a.nav-item { 
+            position: relative; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            text-decoration: none; 
+            color: #888; 
+            font-size: 11px; 
+            flex: 1; 
+            transition: color 0.25s ease, transform 0.25s ease; 
+        }
+        .bottom-nav a.nav-item.active { 
+            color: var(--accent-color); 
+            transform: translateY(-3px); 
+        }
+        .nav-item svg { 
+            width: 26px; 
+            height: 26px; 
+            stroke: #888; 
+            stroke-width: 1.8; 
+            fill: none; 
+            transition: stroke 0.3s ease, transform 0.25s ease; 
+        }
+        .nav-item.active svg { 
+            stroke: var(--accent-color); 
+            transform: scale(1.15); 
+        }
+        .user-thumb { 
+            width: 28px; 
+            height: 28px; 
+            border-radius: 8px; 
+            object-fit: cover; 
+            border: 1.5px solid #333; 
+            transition: transform 0.25s ease, border-color 0.25s ease; 
+        }
+        .nav-item.active .user-thumb { 
+            transform: scale(1.05); 
+            border-color: var(--accent-color); 
+        }
+        /* ========================================= */
+        /* نهاية تنسيقات القائمة السفلية الحديثة     */
+        /* ========================================= */
+        
+        /* ===== START: SLIDER STYLES ===== */
+        .slider-wrapper {
+            display: flex;
+            overflow-x: auto;
+            scroll-snap-type: x mandatory;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+            width: 100%;
+            height: 78vh;
+            margin-bottom: 15px;
+        }
+        .slider-wrapper::-webkit-scrollbar { display: none; }
+
+        .slider-section {
+            position: relative;
+            flex: 0 0 100%;
+            scroll-snap-align: start;
+            overflow: hidden;
+        }
+
+        .movie-card {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+        .movie-poster {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center top;
+            transition: filter 0.5s ease, opacity 0.5s ease;
+            filter: blur(10px);
+            opacity: 0.7;
+        }
+        .movie-poster.loaded {
+            filter: blur(0);
+            opacity: 1;
+        }
+        .movie-overlay {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                to bottom,
+                rgba(0,0,0,0.05) 0%,
+                rgba(0,0,0,0.15) 40%,
+                rgba(0,0,0,0.35) 65%,
+                rgba(10,10,10,0.85) 85%,
+                rgba(10,10,10,1) 100%
+            );
+            z-index: 1;
+        }
+        .movie-content {
+            position: absolute;
+            bottom: 8%;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            z-index: 2;
+            width: 90%;
+            max-width: 600px;
+            animation: fadeUp 1.2s ease forwards;
+            opacity: 0;
+        }
+        @keyframes fadeUp {
+            from {opacity: 0; transform: translate(-50%, 20px);}
+            to {opacity: 1; transform: translate(-50%, 0);}
+        }
+        .movie-logo {
+            max-width: 80%;
+            height: auto;
+            margin-bottom: 25px;
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.7));
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+        .movie-logo.loaded { opacity: 1; }
+
+        .movie-info {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 15px;
+            color: #ccc;
+            margin-bottom: 25px;
+        }
+        .rating-number {
+            color: #fff;
+            font-weight: 600;
+            font-size: 15px;
+        }
+        .movie-info .imdb-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #f5c518;
+            color: #000;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 13px;
+            line-height: 1;
+            font-family: Arial, sans-serif;
+            height: 18px;
+            vertical-align: middle;
+            position: relative;
+            top: -1px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+        }
+
+        .movie-actions {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 14px;
+        }
+        .action-btn {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            border: 1.5px solid rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .action-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: scale(1.08);
+        }
+        .action-btn.added {
+            background: #1db954;
+            border-color: #1db954;
+            color: white;
+            transform: scale(1.05);
+            animation: pop 0.3s ease;
+        }
+        @keyframes pop {
+            0% {transform: scale(0.8);}
+            50% {transform: scale(1.2);}
+            100% {transform: scale(1);}
+        }
+
+        .watch-btn {
+            height: 43px;
+            padding: 0 22px;
+            border-radius: 25px;
+            border: none;
+            background: white;
+            color: #000;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        .watch-btn:hover { transform: scale(1.05); }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 9999;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.75);
+            backdrop-filter: blur(6px);
+            animation: fadeInBg 0.4s ease forwards;
+        }
+        @keyframes fadeInBg { from {opacity:0;} to {opacity:1;} }
+
+        .modal-content {
+            background-color: #1a1a1a;
+            margin: 10% auto;
+            padding: 25px;
+            border-radius: 12px;
+            width: 85%;
+            max-width: 420px;
+            color: #fff;
+            text-align: center;
+            box-shadow: 0 0 20px rgba(255,255,255,0.15);
+        }
+        .close-btn {
+            color: #aaa;
+            float: left;
+            font-size: 22px;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+        .close-btn:hover { color: #fff; transform: rotate(90deg); }
+        /* ===== END: SLIDER STYLES ===== */
+
+        /* General Section Styles */
+        .section {
+            margin-bottom: 15px;
+            padding: 0 10px;
+        }
+        .section-title {
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+        
+        /* Horizontal List & Cards */
+        .horizontal-list {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            padding-bottom: 5px;
+            scroll-snap-type: x mandatory;
+            -webkit-overflow-scrolling: touch;
+        }
+        .horizontal-list::-webkit-scrollbar { display: none; }
+        
+        .card-wrapper {
+            width: 120px;
+            flex-shrink: 0;
+            display: block;
+            scroll-snap-align: start;
+        }
+        
+        .card {
+            position: relative;
+            width: 100%;
+            border-radius: 15px;
+            background-color: #1c1c1c;
+            overflow: hidden;
+            text-decoration: none;
+            display: block;
+        }
+        
+        .card img {
+            width: 100%;
+            height: 160px;
+            object-fit: cover;
+            display: block;
+            border-radius: 15px;
+        }
+        
+        .card-details {
+            margin-top: 5px;
+            text-align: center;
+        }
+        
+        .card-details-title {
+            font-size: 13px;
+            margin-bottom: 4px;
+            color: #fff;
+            direction: ltr;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: block;
+        }
+        
+        .card-details-meta {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+        }
+        
+        .card-details-meta .year { color: #bbb; }
+        
+        .card-details-meta .rating {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .card-details-meta .rating img {
+            width: 30px;
+            height: 15px;
+            object-fit: contain;
+        }
+
+        .card-overlay {
+          position: absolute;
+          top: 0; right: 0; bottom: 0; left: 0;
+          background: rgba(0, 0, 0, 0.7);
+          color: white;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          align-items: center;
+          opacity: 0;
+          transition: opacity 0.3s ease;
+          text-align: center;
+          padding: 10px;
+        }
+
+        .card:hover .card-overlay {
+          opacity: 1;
+        }
+
+        .play-icon {
+          font-size: 28px;
+          margin-bottom: 10px;
+          color: #ff3333;
+        }
+
+        .card-desc {
+          font-size: 13px;
+          line-height: 1.4;
+        }
+
+        /* Episodes Styles */
+        .episodes-row{
+            display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;
+            scroll-snap-type:x mandatory;
+        }
+        .episodes-row::-webkit-scrollbar{display:none}
+        
+        .episode-card{
+            flex:0 0 auto;width:220px;border-radius:14px;
+            background:#0a0a0a;overflow:hidden;text-decoration:none;color:inherit;
+            scroll-snap-align:start;
+            transition:transform .18s ease;
+        }
+        
+        .thumb{position:relative;aspect-ratio:16/9;background:#111;overflow:hidden}
+        .thumb img{width:100%;height:100%;object-fit:cover}
+        
+        .badge{
+            position:absolute;z-index:2;top:8px;inset-inline-start:8px;
+            background:rgba(0,0,0,.65);color:#fff;
+            border-radius:999px;font-size:10px;padding:2px 6px;line-height:1
+        }
+        .badge.quality{background:linear-gradient(90deg, #0ea5e9, #3b82f6)}
+        .badge.se{inset-inline-start:auto;inset-inline-end:8px}
+        
+        .imdb{
+            position:absolute;bottom:6px;inset-inline-start:6px;
+            display:flex;align-items:center;gap:4px;
+            background:rgba(0,0,0,.6);border-radius:999px;
+            padding:2px 6px;font-size:11px;font-weight:700
+        }
+        .meta{padding:6px 8px}
+        .title{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .subtitle{font-size:12px;color:#a8b3cf;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .extra{margin-top:4px;font-size:11px;color:#a8b3cf;display:flex;align-items:center;gap:6px}
+        .dot{width:6px;height:6px;border-radius:50%;background:#3b82f6}
+
+        /* Search Modal */
+        #searchModal { z-index: 2000; }
+        #searchModal .modal-content {
+            background-color: #222;
+            margin: 10% auto;
+            padding: 20px;
+            border: 1px solid #444;
+            width: 90%;
+            max-width: 600px;
+            border-radius: 15px;
+        }
+        
+        #searchModal .modal-content input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: none;
+            outline: none;
+            font-size: 16px;
+            border-radius: 10px;
+        }
+        
+        .modal-results {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .search-result-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #444;
+            cursor: pointer;
+            gap: 20px;
+        }
+        
+        .search-result-item img {
+            width: 70px;
+            height: 90px;
+            object-fit: cover;
+            border-radius: 10px;
+            margin-right: 10px;
+        }
+        
+        .result-info h4 {
+            margin: 0;
+            font-size: 16px;
+        }
+        
+        .result-info p {
+            margin: 2px 0 0 0;
+            font-size: 14px;
+            color: #ccc;
+        }
+        
+        #searchModal .close {
+            color: #fff;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .icon-halloween {   width: 160px;    height: 40px;    vertical-align: middle;    margin-right: 6px;}.ultra-img {    width: 130px;   /* مقاس مختلف */    height: auto;}
+ /* CSS نهائي لقسم باقة محرم الحرام بدون مسافات جانبية */
+.ramadan-section-final {
+    position: relative;
+    background-color: #0a0a0a;
+    /* إزالة كل الهوامش والحشو الجانبي */
+    margin: 0;
+    padding: 0;
+    margin-bottom: 15px;
+    overflow: hidden;
+    width: 100vw; /* عرض كامل للشاشة */
+    margin-left: calc(-50vw + 50%); /* توسيط وتمديد للعرض الكامل */
+}
+
+.cards-wrapper-final {
+    position: relative;
+    min-height: 320px;
+    overflow: visible;
+}
+
+/* صورة الخلفية - تغطي كامل العرض */
+.decorative-bg-final {
+    position: absolute;
+    top: -50px;
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: 280px;
+    object-fit: cover;
+    border-radius: 0;
+    z-index: 1;
+    opacity: 0.9;
+}
+
+/* العنوان */
+.ramadan-section-final .section-title {
+    padding: 0 10px; /* حشو قليل للعنوان فقط */
+    margin-bottom: 15px;
+    position: relative;
+    z-index: 2;
+}
+
+/* قائمة الكروت الأفقية */
+.horizontal-list-final {
+    position: relative;
+    top: 140px;
+    display: flex;
+    gap: 16px;
+    overflow-x: auto;
+    overflow-y: visible;
+    /* بدء الكروت من أقصى اليمين */
+    padding: 20px 10px 20px 10px;
+    z-index: 10;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    justify-content: flex-start;
+    /* إخفاء شريط التمرير */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    direction: rtl; /* اتجاه من اليمين لليسار */
+}
+
+/* إخفاء شريط التمرير في WebKit browsers */
+.horizontal-list-final::-webkit-scrollbar {
+    display: none;
+}
+
+/* تصميم الكارت */
+.card-wrapper-final {
+    flex-shrink: 0;
+    scroll-snap-align: start;
+    position: relative;
+    z-index: 10;
+    min-width: 120px;
+    direction: ltr; /* إعادة الاتجاه الطبيعي للكروت */
+}
+
+.card-final {
+    position: relative;
+    display: block;
+    width: 120px;
+    height: 160px;
+    border-radius: 15px;
+    overflow: hidden;
+    background-color: #1c1c1c;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.8);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    text-decoration: none;
+    border: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.card-final:hover {
+    transform: translateY(-8px) scale(1.05);
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.9);
+}
+
+.card-final img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+
+
+/* طبقة التراكب */
+.card-overlay-final {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.7));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: 2;
+}
+
+.card-final:hover .card-overlay-final {
+    opacity: 1;
+}
+
+.play-icon-final {
+    color: white;
+    font-size: 28px;
+    margin-bottom: 8px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+.card-desc-final {
+    color: white;
+    font-size: 11px;
+    text-align: center;
+    padding: 0 8px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+/* تفاصيل الكارت */
+.card-details-final {
+    margin-top: 5px;
+    text-align: center;
+    position: relative;
+    z-index: 10;
+}
+
+.card-details-title-final {
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.card-details-meta-final {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 12px;
+}
+
+.year-final {
+    color: #bbb;
+}
+
+.rating-final {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.rating-final img {
+    width: 30px;
+    height: 15px;
+    object-fit: contain;
+}
+
+.rating-final span {
+    color: #fbbf24;
+    font-weight: 600;
+}
+
+/* استجابة للشاشات الصغيرة */
+@media (max-width: 768px) {
+    .horizontal-list-final {
+        top: 120px;
+        gap: 12px;
+        padding: 15px 8px;
+    }
+
+    .card-final {
+        width: 100px;
+        height: 140px;
+    }
+
+    .card-wrapper-final {
+        min-width: 100px;
+    }
+    
+    .ramadan-section-final .section-title {
+        padding: 0 8px;
+    }
+}
+
+@media (max-width: 480px) {
+    .decorative-bg-final {
+        top: -20px;
+        height: 280px;
+    }
+
+    .horizontal-list-final {
+        top: 100px;
+        padding: 10px 5px;
+    }
+
+    .card-final {
+        width: 110px;
+        height: 160px;
+    }
+
+    .card-wrapper-final {
+        min-width: 90px;
+    }
+}
+/* الحاوية الأساسية */
+.must-watch-section {
+    padding: 0 10px;
+    margin-bottom: 15px;
+    background: none;
+}
+
+.title-text {
+    color: white;
+    font-size: 15px;
+    margin-bottom: 20px;
+    font-family: sans-serif;
+}
+
+.horizontal-scroll {
+    display: flex;
+    gap: 15px;
+    overflow-x: auto;
+    padding: 10px 5px;
+}
+
+/* كارت الفيلم */
+.movie-card {
+    position: relative;
+    flex: 0 0 120px; /* عرض ثابت يمنع تضخم العناصر */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* الدائرة مع الإطار الأحمر المتصل */
+.circle-box {
+    position: relative;
+    width: 115px;
+    height: 115px;
+    border-radius: 50%;
+    /* خلفية متدرجة لخلق إطار أحمر يتلاشى في الأسفل */
+    background: conic-gradient(from 180deg, transparent 0%, red 20%, red 80%, transparent 100%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* لضمان أن البوستر داخل الإطار الأحمر النحيف */
+.circle-box::after {
+    content: "";
+    position: absolute;
+    inset: 2px; /* يتحكم في نحافة الخط الأحمر */
+    background: #000;
+    border-radius: 50%;
+    z-index: 1;
+}
+
+.poster-img {
+    width: calc(100% - 4px);
+    height: calc(100% - 4px);
+    border-radius: 50%;
+    object-fit: cover;
+    object-position: 90% 20%;
+    z-index: 2;
+}
+
+/* التدرج الأسود الداخلي في قاع الدائرة */
+.bottom-shade {
+    position: absolute;
+    bottom: 2px;
+    width: calc(100% - 4px);
+    height: 40%;
+    background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
+    z-index: 3;
+    border-radius: 0 0 45px 45px;
+}
+
+/* الشعار المنظم (حجمه ثابت وصغير) */
+.floating-logo {
+    position: absolute;
+    bottom: -5px; /* يبرز قليلاً أسفل الدائرة */
+    width: 90px;  /* عرض ثابت يمنع التضخم المبالغ فيه */
+    max-height: 42px; /* ارتفاع محدد ليبقى منظماً */
+    object-fit: contain;
+    z-index: 10;
+    /* ظل خفيف لإبراز الشعار عن الخلفية */
+    filter: drop-shadow(0px 3px 3px rgba(0,0,0,0.7));
+}
+
+
+
+/* تحسين العرض للابتوب والشاشات */
+@media (min-width: 1024px) {
+  .movies-grid {
+    grid-template-columns: repeat(6, 1fr);
+    gap: 18px;
+  }
+}
+
+@media (min-width: 1440px) {
+  .movies-grid {
+    grid-template-columns: repeat(8, 1fr);
+  }
+}
+
+/* تحديد أقصى عرض للموقع */
+body {
+  max-width: 1600px;
+  margin: auto;
+}
+   </style>
+</head>
+<body>
+
+<div class="page-container active" id="page-home">
+<div class="slider-wrapper" id="sliderWrapper">
+<section class="slider-section">
+<div class="movie-card">
+<img alt="خلفية Alien Earth" class="movie-poster loaded" onerror="this.src='https://via.placeholder.com/780x440'" src="https://image.tmdb.org/t/p/original/zZBjzKLO1FsypqQpxpGQyEgCDpI.jpg"/>
+<div class="movie-overlay"></div>
+<div class="movie-content">
+<img alt="Spartacus: House of Ashur" class="movie-logo loaded" onerror="this.style.display='none'" src="https://g.top4top.io/p_3653v9rp41.png"/>
+<div class="movie-info">
+<span>رسوم متحركة • حركة • فانتازيا</span>
+<span class="imdb-badge">IMDb</span>
+<span class="rating-number">7.6</span>
+<span>/10</span>
+</div>
+<div class="movie-actions">
+<button class="action-btn" onclick="document.getElementById('modalTitle').textContent='Spartacus: House of Ashur'; document.getElementById('movieOverview').textContent='في عالمٍ نجا فيه من أحداث سبارتاكوس (2010)، شقّ آشور طريقه بصعوبة إلى السلطة، ممتلكًا نفس مدرسة الفنون القتالية التي كانت تملكه سابقًا. وبتحالفه مع مصارعة شرسة، أشعل آشور نوعًا جديدًا من الاستعراضات التي أثارت حفيظة النخبة.'; document.getElementById('infoModal').style.display='block';">
+<i class="fa-solid fa-circle-info"></i>
+</button>
+<button class="watch-btn" onclick="window.location.href = 'go:240459';">
+<i class="fa-solid fa-play"></i><span>ابدأ المشاهدة</span>
+</button>
+<button class="action-btn" id="fav-123456"><i class="fa-solid fa-plus"></i></button>
+</div>
+</div>
+</div>
+</section></div>
+
+<section class="must-watch-section">
+    <div class="section-title">
+
+    <div class="horizontal-scroll">
+        
+<a href="movie.html?id=83533" class="movie-card">
+    <div class="circle-box">
+        <img src="https://image.tmdb.org/t/p/original/nbkxEZBulwQLg8e1LR3vX6v94FY.jpg" class="poster-img">
+        <div class="bottom-shade"></div>
+        <img src="https://image.tmdb.org/t/p/original/dDyKiuQVrIcUqQV1RWSrBXf8ptD.png" class="floating-logo">
+    </div>
+</a>
+        <a href="go:1228246" class="movie-card">
+    <div class="circle-box">
+        <img src="https://image.tmdb.org/t/p/original/zAK9oUWO4jHVXBxizfAuqtUww1K.jpg" class="poster-img">
+        <div class="bottom-shade"></div>
+        <img src="https://image.tmdb.org/t/p/original/d8T7qSGK3BlCzh9dOSBbIC33vij.png" class="floating-logo">
+    </div>
+</a>
+
+<a href="go:425274" class="movie-card">
+    <div class="circle-box">
+        <img src="https://image.tmdb.org/t/p/original/ek3sdyWMNmwFC4SdylQ6gXXHIzd.jpg" class="poster-img">
+        <div class="bottom-shade"></div>
+        <img src="https://image.tmdb.org/t/p/original/A05LA3Y3z3K4qH2adBQbSBkyBVY.png" class="floating-logo">
+    </div>
+</a>
+
+<a href="go:1439112" class="movie-card">
+    <div class="circle-box">
+        <img src="https://image.tmdb.org/t/p/original/edGTHErBFSpkbulxdKHgK82D3LX.jpg" class="poster-img">
+        <div class="bottom-shade"></div>
+        <img src="https://image.tmdb.org/t/p/original/zhbJVaexxxmMqKkDAQX2oB68Prw.png" class="floating-logo">
+    </div>
+</a>
+<a href="go:1223601" class="movie-card">
+    <div class="circle-box">
+        <img src="https://image.tmdb.org/t/p/original/wmdwmlXpOG1AmlwYnELC0tLjq0C.jpg" class="poster-img">
+        <div class="bottom-shade"></div>
+        <img src="https://image.tmdb.org/t/p/original/8wzX17uqQemNVcE13nwE9rkeIii.png" class="floating-logo">
+    </div>
+</a>
+<a href="go:1419406" class="movie-card">
+    <div class="circle-box">
+        <img src="https://image.tmdb.org/t/p/original/xlrx8GiaKu2sJ35hlA7uKVjpEIS.jpg" class="poster-img">
+        <div class="bottom-shade"></div>
+        <img src="https://image.tmdb.org/t/p/original/Armuk9bpKVzCGBvlxtpwsykroDM.png" class="floating-logo">
+    </div>
+</a>
+<a href="go:812583" class="movie-card">
+    <div class="circle-box">
+        <img src="https://image.tmdb.org/t/p/original/lAedGod5tI7UOyVn2wiqTtzJN1e.jpg" class="poster-img">
+        <div class="bottom-shade"></div>
+        <img src="https://image.tmdb.org/t/p/original/cT7ZcQDZqY0gGRLfevRXR5baEha.png" class="floating-logo">
+    </div>
+</a>
+        </div>
+</section>
+
+        <div class="section">
+<h3 class="section-title">الاضافات الأخيرة</h3><div class="horizontal-list" style="scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;">
+	
+	
+	
+	<div class="card-wrapper"><a class="card" href="go:1311031"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/fWVSwgjpT2D78VUh6X8UBd2rorW.jpg" data-src-original="https://image.tmdb.org/t/p/original/fWVSwgjpT2D78VUh6X8UBd2rorW.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Demon Slayer: Kimetsu no Yaiba Infinity Castle</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>7.6</span></div></div></div></div>
+	<div class="card-wrapper"><a class="card" href="go:211684"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/sP5QdW9FN18XWcA4ROz3MPAQBTx.jpg" data-src-original="https://image.tmdb.org/t/p/original/sP5QdW9FN18XWcA4ROz3MPAQBTx.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">The Walking Dead: Daryl Dixon</h3><div class="card-details-meta"><span class="year">2023</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>8.0</span></div></div></div></div>
+	<div class="card-wrapper"><a class="card" href="go:93405"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/1QdXdRYfktUSONkl1oD5gc6Be0s.jpg" data-src-original="https://image.tmdb.org/t/p/original/1QdXdRYfktUSONkl1oD5gc6Be0s.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Squid Game</h3><div class="card-details-meta"><span class="year">2021</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>7.9</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:653346"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/gKkl37BQuKTanygYQG1pyYgLVgf.jpg" data-src-original="https://image.tmdb.org/t/p/original/gKkl37BQuKTanygYQG1pyYgLVgf.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Kingdom of the Planet of the Apes</h3><div class="card-details-meta"><span class="year">2024</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>7.1</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:580489"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/pzKsRuKLFmYrW5Q0q8E8G78Tcgo.jpg" data-src-original="https://image.tmdb.org/t/p/original/pzKsRuKLFmYrW5Q0q8E8G78Tcgo.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Venom: Let There Be Carnage</h3><div class="card-details-meta"><span class="year">2021</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>6.8</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:219937"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/j5bP7spdfS0NpDLKDlqJYyJPi1j.jpg" data-src-original="https://image.tmdb.org/t/p/original/j5bP7spdfS0NpDLKDlqJYyJPi1j.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Dexter: Original Sin</h3><div class="card-details-meta"><span class="year">2024</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>8.2</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:1228246"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/udAxQEORq2I5wxI97N2TEqdhzBE.jpg" data-src-original="https://image.tmdb.org/t/p/original/udAxQEORq2I5wxI97N2TEqdhzBE.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Five Nights at Freddy's 2</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>6.7</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:85937"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/xUfRZu2mi8jH6SzQEJGP6tjBuYj.jpg" data-src-original="https://image.tmdb.org/t/p/original/xUfRZu2mi8jH6SzQEJGP6tjBuYj.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Demon Slayer: Kimetsu no Yaiba</h3><div class="card-details-meta"><span class="year">2019</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>8.6</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:106379"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/c15BtJxCXMrISLVmysdsnZUPQft.jpg" data-src-original="https://image.tmdb.org/t/p/original/c15BtJxCXMrISLVmysdsnZUPQft.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Fallout</h3><div class="card-details-meta"><span class="year">2024</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>8.2</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:91997"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/agf5sETjlO35s3EDA7wwGliZ5UW.jpg" data-src-original="https://image.tmdb.org/t/p/original/agf5sETjlO35s3EDA7wwGliZ5UW.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">PLUTO</h3><div class="card-details-meta"><span class="year">2023</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>7.9</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:982843"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/w500/7bLr0xljlMz8Xa8sufcZFhg8gh6.jpg" data-src-original="https://image.tmdb.org/t/p/original/7bLr0xljlMz8Xa8sufcZFhg8gh6.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">The Great Flood</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>6.1</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:260755"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/zH55bKu3maXvQ1nHfan1XiRADGA.jpg" data-src-original="https://image.tmdb.org/t/p/original/zH55bKu3maXvQ1nHfan1XiRADGA.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">وتقابل حبيب</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>4.0</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:202555"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/9lLuhV703HGCbnz6FxnqCwIwzAZ.jpg" data-src-original="https://image.tmdb.org/t/p/original/9lLuhV703HGCbnz6FxnqCwIwzAZ.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Daredevil: Born Again</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>8.0</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:157239"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/yueXS3q8BtoWekcHOATFHicLl3e.jpg" data-src-original="https://image.tmdb.org/t/p/original/yueXS3q8BtoWekcHOATFHicLl3e.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Alien: Earth</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>7.4</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:256721"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/jH78nLFrTU6aP7hY7KO6DZHFLoX.jpg" data-src-original="https://image.tmdb.org/t/p/original/jH78nLFrTU6aP7hY7KO6DZHFLoX.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Gachiakuta</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>8.6</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:100088"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/w500/dmo6TYuuJgaYinXBPjrgG9mB5od.jpg" data-src-original="https://image.tmdb.org/t/p/original/dmo6TYuuJgaYinXBPjrgG9mB5od.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">The Last of Us</h3><div class="card-details-meta"><span class="year">2023</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>8.5</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:247718"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/abeH7n5pcuQcwYcTxG6DTZvXLP1.jpg" data-src-original="https://image.tmdb.org/t/p/original/abeH7n5pcuQcwYcTxG6DTZvXLP1.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">MobLand</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>8.4</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:153312"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/rOYLWCdAifpUtPlTf1WHxyaxeMt.jpg" data-src-original="https://image.tmdb.org/t/p/original/rOYLWCdAifpUtPlTf1WHxyaxeMt.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Tulsa King</h3><div class="card-details-meta"><span class="year">2022</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>8.3</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:628847"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/w500/ctU9S47MoJDN9CB7SCaitcfyyIu.jpg" data-src-original="https://image.tmdb.org/t/p/original/ctU9S47MoJDN9CB7SCaitcfyyIu.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Trap House</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>6.1</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:54467"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/6zUdATUbXzmUwozQjvQZe6MEQRl.jpg" data-src-original="https://image.tmdb.org/t/p/original/6zUdATUbXzmUwozQjvQZe6MEQRl.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">المختار الثقفي</h3><div class="card-details-meta"><span class="year">2010</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>7.2</span></div></div></div></div>	
+<div class="card-wrapper"><a class="card" href="go:1363123"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/semFxuYx6HcrkZzslgAkBqfJvZk.jpg" data-src-original="https://image.tmdb.org/t/p/original/semFxuYx6HcrkZzslgAkBqfJvZk.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">The Family Plan 2</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>6.6</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:225171"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/nrM2xFUfKJJEmZzd5d7kohT2G0C.jpg" data-src-original="https://image.tmdb.org/t/p/original/nrM2xFUfKJJEmZzd5d7kohT2G0C.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Pluribus</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>7.9</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:798645"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/dKL78O9zxczVgjtNcQ9UkbYLzqX.jpg" data-src-original="https://image.tmdb.org/t/p/original/dKL78O9zxczVgjtNcQ9UkbYLzqX.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">The Running Man</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>6.9</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:1546050"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/lwKD20JbeZAX4BswSlWKpmB8Qke.jpg" data-src-original="https://image.tmdb.org/t/p/original/lwKD20JbeZAX4BswSlWKpmB8Qke.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Lone Samurai</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>4.4</span></div></div></div></div>
+	<div class="card-wrapper"><a class="card" href="go:194764"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/vOWcqC4oDQws1doDWLO7d3dh5qc.jpg" data-src-original="https://image.tmdb.org/t/p/original/vOWcqC4oDQws1doDWLO7d3dh5qc.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">The Penguin</h3><div class="card-details-meta"><span class="year">2024</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>8.4</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:126308"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/7O4iVfOMQmdCSxhOg1WnzG1AgYT.jpg" data-src-original="https://image.tmdb.org/t/p/original/7O4iVfOMQmdCSxhOg1WnzG1AgYT.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Shōgun</h3><div class="card-details-meta"><span class="year">2024</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>8.4</span></div></div></div></div>
+	<div class="card-wrapper"><a class="card" href="go:1387382"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/cbryTyaWdqrKpQCw6K7zm2jrB5v.jpg" data-src-original="https://image.tmdb.org/t/p/original/cbryTyaWdqrKpQCw6K7zm2jrB5v.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Hunting Season</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>7.1</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:83533"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/gDVgC9jd917NdAcqBdRRDUYi4Tq.jpg" data-src-original="https://image.tmdb.org/t/p/original/gDVgC9jd917NdAcqBdRRDUYi4Tq.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Avatar: Fire and Ash</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>7.3</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:206586"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/ywbacot78IuNhGW4uVZPxxxVTkm.jpg" data-src-original="https://image.tmdb.org/t/p/original/ywbacot78IuNhGW4uVZPxxxVTkm.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">The Walking Dead: The Ones Who Live</h3><div class="card-details-meta"><span class="year">2024</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>8.0</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:70523"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/apbrbWs8M9lyOpJYU5WXrpFbk1Z.jpg" data-src-original="https://image.tmdb.org/t/p/original/apbrbWs8M9lyOpJYU5WXrpFbk1Z.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Dark</h3><div class="card-details-meta"><span class="year">2017</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>8.4</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:425274"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/oD3Eey4e4Z259XLm3eD3WGcoJAh.jpg" data-src-original="https://image.tmdb.org/t/p/original/oD3Eey4e4Z259XLm3eD3WGcoJAh.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Now You See Me: Now You Don't</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>6.3</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:812583"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/qCOGGi8JBVEZMc3DVby8rUivyXz.jpg" data-src-original="https://image.tmdb.org/t/p/original/qCOGGi8JBVEZMc3DVby8rUivyXz.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Wake Up Dead Man: A Knives Out Mystery</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>7.3</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:240459"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/vNByuzy60v31nmUVPMA8oAtneUK.jpg" data-src-original="https://image.tmdb.org/t/p/original/vNByuzy60v31nmUVPMA8oAtneUK.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Spartacus: House of Ashur</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>6.3</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:259909"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/hIawSocuwqgNeRf3JuKuxgMHmSC.jpg" data-src-original="https://image.tmdb.org/t/p/original/hIawSocuwqgNeRf3JuKuxgMHmSC.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Dexter: Resurrection</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>8.5</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:1399"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/1XS1oqL89opfnbLl8WnZY1O1uJx.jpg" data-src-original="https://image.tmdb.org/t/p/original/1XS1oqL89opfnbLl8WnZY1O1uJx.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Game of Thrones</h3><div class="card-details-meta"><span class="year">2011</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>8.5</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:94997"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/oxmdHR5Ka28HAJuMmS2hk5K6QQY.jpg" data-src-original="https://image.tmdb.org/t/p/original/oxmdHR5Ka28HAJuMmS2hk5K6QQY.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">House of the Dragon</h3><div class="card-details-meta"><span class="year">2022</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>8.3</span></div></div></div></div>
+
+        </div>
+        </div>
+
+<div class="section">
+<h2 class="with-icon-left">
+<img alt="" class="icon-halloween" src="https://j.top4top.io/p_36485yomx1.png"/></h2></div>
+<div class="horizontal-scroll">
+	
+	<div class="card-wrapper"><a class="card" href="go:603692"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/vZloFAK7NmvMGKE7VkF5UHaz0I.jpg" data-src-original="https://image.tmdb.org/t/p/original/vZloFAK7NmvMGKE7VkF5UHaz0I.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">John Wick: Chapter 4</h3><div class="card-details-meta"><span class="year">2023</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>7.7</span></div></div></div></div>
+	<div class="card-wrapper"><a class="card" href="go:1311031"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/fWVSwgjpT2D78VUh6X8UBd2rorW.jpg" data-src-original="https://image.tmdb.org/t/p/original/fWVSwgjpT2D78VUh6X8UBd2rorW.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Demon Slayer: Kimetsu no Yaiba Infinity Castle</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>7.6</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:982843"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/w500/7bLr0xljlMz8Xa8sufcZFhg8gh6.jpg" data-src-original="https://image.tmdb.org/t/p/original/7bLr0xljlMz8Xa8sufcZFhg8gh6.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">The Great Flood</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>6.1</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:580489"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/pzKsRuKLFmYrW5Q0q8E8G78Tcgo.jpg" data-src-original="https://image.tmdb.org/t/p/original/pzKsRuKLFmYrW5Q0q8E8G78Tcgo.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Venom: Let There Be Carnage</h3><div class="card-details-meta"><span class="year">2021</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>6.8</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:653346"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/gKkl37BQuKTanygYQG1pyYgLVgf.jpg" data-src-original="https://image.tmdb.org/t/p/original/gKkl37BQuKTanygYQG1pyYgLVgf.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Kingdom of the Planet of the Apes</h3><div class="card-details-meta"><span class="year">2024</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>7.1</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:1228246"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/udAxQEORq2I5wxI97N2TEqdhzBE.jpg" data-src-original="https://image.tmdb.org/t/p/original/udAxQEORq2I5wxI97N2TEqdhzBE.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Five Nights at Freddy's 2</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>6.7</span></div></div></div></div>
+
+<div class="card-wrapper"><a class="card" href="go:823464"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/z1p34vh7dEOnLDmyCrlUVLuoDzd.jpg" data-src-original="https://image.tmdb.org/t/p/original/z1p34vh7dEOnLDmyCrlUVLuoDzd.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Godzilla x Kong: The New Empire</h3><div class="card-details-meta"><span class="year">2024</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>7.1</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:1234821"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/1RICxzeoNCAO5NpcRMIgg1XT6fm.jpg" data-src-original="https://image.tmdb.org/t/p/original/1RICxzeoNCAO5NpcRMIgg1XT6fm.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Jurassic World Rebirth</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>6.4</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:912649"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/1RaSkWakWBxxYOWRrqmwo2my5zg.jpg" data-src-original="https://image.tmdb.org/t/p/original/1RaSkWakWBxxYOWRrqmwo2my5zg.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Venom: The Last Dance</h3><div class="card-details-meta"><span class="year">2024</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>6.7</span></div></div></div></div>
+        </div>
+        </div>
+        
+
+<div class="section">
+<h3 class="section-title">اعمال 2025</h3><div class="horizontal-list" style="scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;">
+
+
+<div class="card-wrapper"><a class="card" href="go:1228246"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/udAxQEORq2I5wxI97N2TEqdhzBE.jpg" data-src-original="https://image.tmdb.org/t/p/original/udAxQEORq2I5wxI97N2TEqdhzBE.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Five Nights at Freddy's 2</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>6.7</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:982843"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/w500/7bLr0xljlMz8Xa8sufcZFhg8gh6.jpg" data-src-original="https://image.tmdb.org/t/p/original/7bLr0xljlMz8Xa8sufcZFhg8gh6.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">The Great Flood</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>6.1</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:628847"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/w500/ctU9S47MoJDN9CB7SCaitcfyyIu.jpg" data-src-original="https://image.tmdb.org/t/p/original/ctU9S47MoJDN9CB7SCaitcfyyIu.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Trap House</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>6.1</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:1363123"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/semFxuYx6HcrkZzslgAkBqfJvZk.jpg" data-src-original="https://image.tmdb.org/t/p/original/semFxuYx6HcrkZzslgAkBqfJvZk.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">The Family Plan 2</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>6.6</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:798645"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/dKL78O9zxczVgjtNcQ9UkbYLzqX.jpg" data-src-original="https://image.tmdb.org/t/p/original/dKL78O9zxczVgjtNcQ9UkbYLzqX.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">The Running Man</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>6.9</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:1546050"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/lwKD20JbeZAX4BswSlWKpmB8Qke.jpg" data-src-original="https://image.tmdb.org/t/p/original/lwKD20JbeZAX4BswSlWKpmB8Qke.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Lone Samurai</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>4.4</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:1387382"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/cbryTyaWdqrKpQCw6K7zm2jrB5v.jpg" data-src-original="https://image.tmdb.org/t/p/original/cbryTyaWdqrKpQCw6K7zm2jrB5v.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Hunting Season</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>7.1</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:83533"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/gDVgC9jd917NdAcqBdRRDUYi4Tq.jpg" data-src-original="https://image.tmdb.org/t/p/original/gDVgC9jd917NdAcqBdRRDUYi4Tq.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Avatar: Fire and Ash</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>7.3</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:425274"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/oD3Eey4e4Z259XLm3eD3WGcoJAh.jpg" data-src-original="https://image.tmdb.org/t/p/original/oD3Eey4e4Z259XLm3eD3WGcoJAh.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Now You See Me: Now You Don't</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>6.3</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:812583"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/qCOGGi8JBVEZMc3DVby8rUivyXz.jpg" data-src-original="https://image.tmdb.org/t/p/original/qCOGGi8JBVEZMc3DVby8rUivyXz.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Wake Up Dead Man: A Knives Out Mystery</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>7.3</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:240459"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/vNByuzy60v31nmUVPMA8oAtneUK.jpg" data-src-original="https://image.tmdb.org/t/p/original/vNByuzy60v31nmUVPMA8oAtneUK.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Spartacus: House of Ashur</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>6.3</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:259886"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/4wDU61HtpXbcwpgCy1xnodxKRYN.jpg" data-src-original="https://image.tmdb.org/t/p/original/4wDU61HtpXbcwpgCy1xnodxKRYN.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">The War Between the Land and the Sea</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>6.8</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:1242501"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/5Byv6nznAb2Izd0gHpODOXnuSbo.jpg" data-src-original="https://image.tmdb.org/t/p/original/5Byv6nznAb2Izd0gHpODOXnuSbo.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Icefall</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>7.0</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:1218925"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/pHyxb2RV5wLlboAwm9ZJ9qTVEDw.jpg" data-src-original="https://image.tmdb.org/t/p/original/pHyxb2RV5wLlboAwm9ZJ9qTVEDw.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Chainsaw Man - The Movie: Reze Arc</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>7.8</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:1223601"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/vUiAm0jbrPgbUDCOhRKsvdT0u5h.jpg" data-src-original="https://image.tmdb.org/t/p/original/vUiAm0jbrPgbUDCOhRKsvdT0u5h.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Sisu: Road to Revenge</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>7.5</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:1571470"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/1T0kO1cgR430AC9I6jurMOezKwg.jpg" data-src-original="https://image.tmdb.org/t/p/original/1T0kO1cgR430AC9I6jurMOezKwg.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">The Rats: A Witcher Tale</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>5.2</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:1419406"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/e0RU6KpdnrqFxDKlI3NOqN8nHL6.jpg" data-src-original="https://image.tmdb.org/t/p/original/e0RU6KpdnrqFxDKlI3NOqN8nHL6.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">The Shadow's Edge</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>6.4</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:533533"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/chpWmskl3aKm1aTZqUHRCtviwPy.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/chpWmskl3aKm1aTZqUHRCtviwPy.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">TRON: Ares</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>6.3</span></div></div></div></div><div class="card-wrapper"><a class="card" href="go:272418"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/3teWChNzKJdbfen46IdeKTygdZa.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/3teWChNzKJdbfen46IdeKTygdZa.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Robin Hood</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>7.8</span></div></div></div></div> <div class="card-wrapper"><a class="card" href="go:286801"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/iDHzRALtZCzHVmx7uyjTTKvMAPB.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/iDHzRALtZCzHVmx7uyjTTKvMAPB.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Monster: The Ed Gein Story</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>7.3</span></div></div></div></div><div class="card-wrapper"><a class="card" href="go:1015981"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/bwRoU9p5GvjxgPfmIgsfcJ4ydng.jpg" loading="lazy" src="https://image.tmdb.org/t/p/w500/bwRoU9p5GvjxgPfmIgsfcJ4ydng.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Jolly LLB 3</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>7.3</span></div></div></div></div><div class="card-wrapper"><a class="card" href="go:1269941"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/nzYfRaYeJDa9Ru9Z35vZsU5Hohn.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/nzYfRaYeJDa9Ru9Z35vZsU5Hohn.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">The Unholy 2</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>6.6</span></div></div></div></div><div class="card-wrapper"><a class="card" href="go:1386792"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/yKy6RsLEC7lloTcHPETgbaAQApq.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/yKy6RsLEC7lloTcHPETgbaAQApq.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Lefter: The Story of the Ordinarius</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>1.5</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:1117857"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/np7ZzU2rmUqqIPQ4HtfcC8JLOvS.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/np7ZzU2rmUqqIPQ4HtfcC8JLOvS.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">In Your Dreams</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>7.2</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:1253000"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/ePpEZavm379yDhx92ekbDnpGa9a.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/ePpEZavm379yDhx92ekbDnpGa9a.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Deathstalker</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>6.5</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:1248226"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/fGodXWqJkkkbSebPIlxLSygV8GY.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/fGodXWqJkkkbSebPIlxLSygV8GY.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Playdate</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>6.6</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:252193"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/d3K7mugQwGdWf1Q9Fnb0m8y1Mng.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/d3K7mugQwGdWf1Q9Fnb0m8y1Mng.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Last Samurai Standing</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>8.4</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:1261756"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/31HRhQyllgSRGU7M9xHBKWRsY5F.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/31HRhQyllgSRGU7M9xHBKWRsY5F.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Utusan Iblis: Dia Yang Berada di Antara Kita</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>6.0</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:1054867"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/m1jFoahEbeQXtx4zArT2FKdbNIj.jpg" loading="lazy" src="https://image.tmdb.org/t/p/w500/m1jFoahEbeQXtx4zArT2FKdbNIj.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">One Battle After Another</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>7.7</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:1429738"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/ig00LBM2rv4fmCJOPATyRWOJnlL.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/ig00LBM2rv4fmCJOPATyRWOJnlL.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Tee Yai: Born to Be Bad</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>N/A</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:1426518"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/bAAdoOyCm3DqrOyj0h2icPpeHHw.jpg" loading="lazy" src="https://image.tmdb.org/t/p/w500/bAAdoOyCm3DqrOyj0h2icPpeHHw.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Being Eddie</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>7.0</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:760329"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/mPuBDGrVIBGOymBxR6rO3iIvBSe.jpg" loading="lazy" src="https://image.tmdb.org/t/p/w500/mPuBDGrVIBGOymBxR6rO3iIvBSe.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">The Smashing Machine</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>6.4</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:1062722"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/v9NLaLBbrkDwq44qG51v8T6sPuI.jpg" loading="lazy" src="https://image.tmdb.org/t/p/w500/v9NLaLBbrkDwq44qG51v8T6sPuI.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Frankenstein</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>7.7</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:200875"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/nyy3BITeIjviv6PFIXtqvc8i6xi.jpg" loading="lazy" src="https://image.tmdb.org/t/p/w500/nyy3BITeIjviv6PFIXtqvc8i6xi.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">IT: Welcome to Derry</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>7.9</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:302658"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/3YnZMYn4ZdchxrBZYxaZ0h96lmp.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/3YnZMYn4ZdchxrBZYxaZ0h96lmp.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Founder: Orhan</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>9.5</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:228689"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/opop2u7Jav6lMNL8fSBTzOeFBDz.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/opop2u7Jav6lMNL8fSBTzOeFBDz.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Genie, Make a Wish</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>7.3</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:1114967"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/r83HIGA0mUiy7I9qVr17pF7SCDP.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/r83HIGA0mUiy7I9qVr17pF7SCDP.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Good Fortune</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>6.7</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:1197137"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/xUWUODKPIilQoFUzjHM6wKJkP3Y.jpg" loading="lazy" src="https://image.tmdb.org/t/p/w500/xUWUODKPIilQoFUzjHM6wKJkP3Y.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Black Phone 2</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>7.2</span></div></div></div></div> <div class="card-wrapper"><a class="card" href="go:1242898"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/pHpq9yNUIo6aDoCXEBzjSolywgz.jpg" loading="lazy" src="https://image.tmdb.org/t/p/w500/pHpq9yNUIo6aDoCXEBzjSolywgz.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Predator: Badlands</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>6.8</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:283123"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/eeFYLgiRFaG3bKx1qLyC7YOdHJz.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/eeFYLgiRFaG3bKx1qLyC7YOdHJz.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Esref Ruya</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>7.3</span></div></div></div></div>
+</div>
+</div>
+
+<div class="section">
+<h3 class="section-title">افضل الأفلام لهاذ العام</h3>
+<div style="overflow-x: auto; white-space: nowrap; padding: 10px 0;">
+<div style="display: flex; gap: 10px;">
+
+
+<a href="go:83533" style="position: relative; display: inline-block;"><img height="310" loading="lazy" src="https://image.tmdb.org/t/p/w780/nbkxEZBulwQLg8e1LR3vX6v94FY.jpg" style="border-radius: 10px; display: block;" width="200"><div style="position: absolute; bottom: -10px; left: 0; width: 100%; height: 155px; background: linear-gradient(to top, #0a0a0a 20%, transparent 100%); border-radius: 0 0 10px 10px; pointer-events: none;"></div><img loading="lazy" src="https://image.tmdb.org/t/p/original/qzuSPiHF08bUZXPaXST24ANfoqK.png" style="position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); width: 145px; height: 40px; z-index: 2;"> </img></img></a>
+<a href="go:1223601" style="position: relative; display: inline-block;"><img height="310" loading="lazy" src="https://image.tmdb.org/t/p/w780/wmdwmlXpOG1AmlwYnELC0tLjq0C.jpg" style="border-radius: 10px; display: block;" width="200"><div style="position: absolute; bottom: -10px; left: 0; width: 100%; height: 155px; background: linear-gradient(to top, #0a0a0a 20%, transparent 100%); border-radius: 0 0 10px 10px; pointer-events: none;"></div><img loading="lazy" src="https://image.tmdb.org/t/p/w780/wuAniTf3tomReW8ZjZGcfW7M3yC.png" style="position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); width: 145px; height: 30px; z-index: 2;"> </img></img></a>
+<a href="go:1311031" style="position: relative; display: inline-block;"><img height="310" loading="lazy" src="https://image.tmdb.org/t/p/w780/zZBjzKLO1FsypqQpxpGQyEgCDpI.jpg" style="border-radius: 10px; display: block;" width="200"><div style="position: absolute; bottom: -10px; left: 0; width: 100%; height: 155px; background: linear-gradient(to top, #0a0a0a 20%, transparent 100%); border-radius: 0 0 10px 10px; pointer-events: none;"></div><img loading="lazy" src="https://image.tmdb.org/t/p/original/w3H7PDwwss5SLuMQ8UBrAProasG.png" style="position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); width: 115px; height: 100px; z-index: 2;"> </img></img></a><a href="go:1242898" style="position: relative; display: inline-block;"><img height="310" loading="lazy" src="https://image.tmdb.org/t/p/w780/30VqF5tcruQqDuTwg4SyvwuSfrD.jpg" style="border-radius: 10px; display: block;" width="200"><div style="position: absolute; bottom: -10px; left: 0; width: 100%; height: 155px; background: linear-gradient(to top, #0a0a0a 20%, transparent 100%); border-radius: 0 0 10px 10px; pointer-events: none;"></div><img loading="lazy" src="https://image.tmdb.org/t/p/w780/nrDdX8fAMPvYo301ImM4GTL5bkg.png" style="position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); width: 145px; height: 30px; z-index: 2;"> </img></img></a>
+<a href="go:1062722" style="position: relative; display: inline-block;"><img height="310" loading="lazy" src="https://image.tmdb.org/t/p/w780/8JvgRHymOcpTxzwdR04mfkOrBmB.jpg" style="border-radius: 10px; display: block;" width="200"><div style="position: absolute; bottom: -10px; left: 0; width: 100%; height: 155px; background: linear-gradient(to top, #0a0a0a 20%, transparent 100%); border-radius: 0 0 10px 10px; pointer-events: none;"></div><img loading="lazy" src="https://image.tmdb.org/t/p/w780/xctDnRTdbfI4nH0UbPRtFwlDdL4.png" style="position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); width: 145px; height: 30px; z-index: 2;"> </img></img></a>
+<a href="go:1078605" style="position: relative; display: inline-block;"><img height="310" loading="lazy" src="https://image.tmdb.org/t/p/w780/3npQJlwv6b9ZmNWe2ukGuBKJJvU.jpg" style="border-radius: 10px; display: block;" width="200"><div style="position: absolute; bottom: -10px; left: 0; width: 100%; height: 155px; background: linear-gradient(to top, #0a0a0a 20%, transparent 100%); border-radius: 0 0 10px 10px; pointer-events: none;"></div><img loading="lazy" src="https://image.tmdb.org/t/p/w780/9rHy9WCk3xcrNtxDDt9zJsMqcct.png" style="position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); width: 145px; height: 30px; z-index: 2;"> </img></img></a><a href="go:541671" style="position: relative; display: inline-block;"><img height="310" loading="lazy" src="https://image.tmdb.org/t/p/w500/8NsqDXtXLZk6KJ1dTNWeEosD4lu.jpg" style="border-radius: 10px; display: block;" width="200"><div style="position: absolute; bottom: -10px; left: 0; width: 100%; height: 155px; background: linear-gradient(to top, #0a0a0a 20%, transparent 100%); border-radius: 0 0 10px 10px; pointer-events: none;"></div><img loading="lazy" src="https://image.tmdb.org/t/p/w500/d5hliESxiKVZUgB8u3brh71Hy9v.png" style="position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); width: 140px; height: 40px; z-index: 2;"> </img></img></a><a href="go:911430" style="position: relative; display: inline-block;"><img height="310" loading="lazy" src="https://image.tmdb.org/t/p/w500/v0YHs3ge1MYyyueNRu4w1RxE5Xm.jpg" style="border-radius: 10px; display: block;" width="200"><div style="position: absolute; bottom: -10px; left: 0; width: 100%; height: 155px; background: linear-gradient(to top, #0a0a0a 20%, transparent 100%); border-radius: 0 0 10px 10px; pointer-events: none;"></div><img loading="lazy" src="https://image.tmdb.org/t/p/w500/2DkBSNgrOpwhv0K4gwDERabZu0r.png" style="position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); width: 140px; height: 40px; z-index: 2;"> </img></img></a><a href="go:1233413" style="position: relative; display: inline-block;"><img height="310" loading="lazy" src="https://image.tmdb.org/t/p/w500/tX7QnaVRI6oyYeDT0ZfUMR5c0xM.jpg" style="border-radius: 10px; display: block;" width="200"><div style="position: absolute; bottom: -10px; left: 0; width: 100%; height: 155px; background: linear-gradient(to top, #0a0a0a 20%, transparent 100%); border-radius: 0 0 10px 10px; pointer-events: none;"></div><img loading="lazy" src="https://image.tmdb.org/t/p/w500/5vpiFbVkw7ua0x7OiEFbyiSYp7A.png" style="position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); width: 140px; height: 50px; z-index: 2;"> </img></img></a><a href="go:1087192" style="position: relative; display: inline-block;"><img height="310" loading="lazy" src="https://image.tmdb.org/t/p/w500/lE6whumsn9nhElyj1dxj9FPxD0Z.jpg" style="border-radius: 10px; display: block;" width="200"><div style="position: absolute; bottom: -10px; left: 0; width: 100%; height: 155px; background: linear-gradient(to top, #0a0a0a 20%, transparent 100%); border-radius: 0 0 10px 10px; pointer-events: none;"></div><img loading="lazy" src="https://image.tmdb.org/t/p/w500/sEJ7d72IXxoktZeJ4V6z35Hhe4a.png" style="position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); width: 140px; height: 50px; z-index: 2;"> </img></img></a><a href="go:1234821" style="position: relative; display: inline-block;"><img height="310" loading="lazy" src="https://image.tmdb.org/t/p/w500/rTxsUEHPOUAQCGxmtLf5ZuiaLUj.jpg" style="border-radius: 10px; display: block;" width="200"><div style="position: absolute; bottom: -10px; left: 0; width: 100%; height: 155px; background: linear-gradient(to top, #0a0a0a 20%, transparent 100%); border-radius: 0 0 10px 10px; pointer-events: none;"></div><img loading="lazy" src="https://image.tmdb.org/t/p/w500/32OdY2DxKvAm0aBYBiI0pku0yaB.png" style="position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); width: 140px; height: 100px; z-index: 2;"> </img></img></a><a href="go:1061474" style="position: relative; display: inline-block;"><img height="310" loading="lazy" src="https://image.tmdb.org/t/p/w500/pAxYNjhGf9wEn4moyRp528HtfNn.jpg" style="border-radius: 10px; display: block;" width="200"><div style="position: absolute; bottom: -10px; left: 0; width: 100%; height: 155px; background: linear-gradient(to top, #0a0a0a 20%, transparent 100%); border-radius: 0 0 10px 10px; pointer-events: none;"></div><img loading="lazy" src="https://image.tmdb.org/t/p/w500/kjkMV0SpIzLYpSncPLPnBCqzM6E.png" style="position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); width: 140px; height: 80px; z-index: 2;"> </img></img></a><a href="go:986056" style="position: relative; display: inline-block;"><img height="310" loading="lazy" src="https://image.tmdb.org/t/p/w500/jWK4WEU65eRDr6oYD00yTiid7D3.jpg" style="border-radius: 10px; display: block;" width="200"><div style="position: absolute; bottom: -10px; left: 0; width: 100%; height: 155px; background: linear-gradient(to top, #0a0a0a 20%, transparent 100%); border-radius: 0 0 10px 10px; pointer-events: none;"></div><img loading="lazy" src="https://image.tmdb.org/t/p/w500/uEAkfkPOveKWhUe3xqmqxaPpAgR.png" style="position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); width: 160px; height: 60px; z-index: 2;"> </img></img></a><a href="go:762509" style="position: relative; display: inline-block;"><img height="310" loading="lazy" src="https://image.tmdb.org/t/p/w500/1v1TDQfnCgVPz6qeMn7o7lPtRnR.jpg" style="border-radius: 10px; display: block;" width="200"><div style="position: absolute; bottom: -10px; left: 0; width: 100%; height: 155px; background: linear-gradient(to top, #0a0a0a 20%, transparent 100%); border-radius: 0 0 10px 10px; pointer-events: none;"></div><img loading="lazy" src="https://image.tmdb.org/t/p/w500/rMU6hLUwN144Z2Fw8ZY8RXNS219.png" style="position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); width: 160px; height: 40px; z-index: 2;"> </img></img></a><a href="go:870028" style="position: relative; display: inline-block;"><img height="310" loading="lazy" src="https://image.tmdb.org/t/p/w500/wVvdvtZHFQmGlX5ESlVtpCy8a7b.jpg" style="border-radius: 10px; display: block;" width="200"><div style="position: absolute; bottom: -10px; left: 0; width: 100%; height: 155px; background: linear-gradient(to top, #0a0a0a 20%, transparent 100%); border-radius: 0 0 10px 10px; pointer-events: none;"></div><img loading="lazy" src="https://image.tmdb.org/t/p/w500/n4zshTv8HlHSzNrS1LS3a3Fz52p.png" style="position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); width: 160px; height: 60px; z-index: 2;"> </img></img></a><a href="go:1011477" style="position: relative; display: inline-block;"><img height="310" loading="lazy" src="https://image.tmdb.org/t/p/w500/yrFM6eh9WwhnHjP44qElwtzxTso.jpg" style="border-radius: 10px; display: block;" width="200"><div style="position: absolute; bottom: -10px; left: 0; width: 100%; height: 155px; background: linear-gradient(to top, #0a0a0a 20%, transparent 100%); border-radius: 0 0 10px 10px; pointer-events: none;"></div><img loading="lazy" src="https://image.tmdb.org/t/p/w500/8cikNpzpU8eYQnX4cKVrQMWfdhw.png" style="position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); width: 160px; height: 60px; z-index: 2;"> </img></img></a><a href="go:575265" style="position: relative; display: inline-block;"><img height="310" loading="lazy" src="https://image.tmdb.org/t/p/w500/7bQPyaByJrndj43bYQOc36UIzWg.jpg" style="border-radius: 10px; display: block;" width="200"><div style="position: absolute; bottom: -10px; left: 0; width: 100%; height: 155px; background: linear-gradient(to top, #0a0a0a 20%, transparent 100%); border-radius: 0 0 10px 10px; pointer-events: none;"></div><img loading="lazy" src="https://image.tmdb.org/t/p/w500/7yXEfWFDGpqIfq9wdpMOHcHbi8g.png" style="position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); width: 160px; height: 60px; z-index: 2;"> </img></img></a><a href="go:574475" style="position: relative; display: inline-block;"><img height="310" loading="lazy" src="https://image.tmdb.org/t/p/w500/gbFAp4ZYJAxAr0l6YDUKHYdE615.jpg" style="border-radius: 10px; display: block;" width="200"><div style="position: absolute; bottom: -10px; left: 0; width: 100%; height: 155px; background: linear-gradient(to top, #0a0a0a 20%, transparent 100%); border-radius: 0 0 10px 10px; pointer-events: none;"></div><img loading="lazy" src="https://image.tmdb.org/t/p/w500/fNSADtnvvcZZyNxVKYOikFzv0pI.png" style="position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); width: 160px; height: 60px; z-index: 2;"> </img></img></a><a href="go:552524" style="position: relative; display: inline-block;"><img height="310" loading="lazy" src="https://image.tmdb.org/t/p/w500/7TFxkvHbHemLjOjn3sI7jd66GMf.jpg" style="border-radius: 10px; display: block;" width="200"><div style="position: absolute; bottom: -10px; left: 0; width: 100%; height: 155px; background: linear-gradient(to top, #0a0a0a 20%, transparent 100%); border-radius: 0 0 10px 10px; pointer-events: none;"></div><img loading="lazy" src="https://image.tmdb.org/t/p/w500/5EviIH0yjaoIQ0xtRVcqEXfknOm.png" style="position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); width: 160px; height: 60px; z-index: 2;"> </img></img></a><a href="go:1100988" style="position: relative; display: inline-block;"><img height="310" loading="lazy" src="https://image.tmdb.org/t/p/w500/65WMaahaiO0dWhIyeqaNGKZiksP.jpg" style="border-radius: 10px; display: block;" width="200"><div style="position: absolute; bottom: -10px; left: 0; width: 100%; height: 155px; background: linear-gradient(to top, #0a0a0a 20%, transparent 100%); border-radius: 0 0 10px 10px; pointer-events: none;"></div><img loading="lazy" src="https://image.tmdb.org/t/p/w500/mFc8BQmGsJ420Kh9HA8iXaQ5s44.png" style="position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); width: 160px; height: 30px; z-index: 2;"> </img></img></a><a href="go:950387" style="position: relative; display: inline-block;"><img height="310" loading="lazy" src="https://image.tmdb.org/t/p/w500/s0zDEtjM9DVshzK3T3kGfibqJy.jpg" style="border-radius: 10px; display: block;" width="200"><div style="position: absolute; bottom: -10px; left: 0; width: 100%; height: 155px; background: linear-gradient(to top, #0a0a0a 20%, transparent 100%); border-radius: 0 0 10px 10px; pointer-events: none;"></div><img loading="lazy" src="https://image.tmdb.org/t/p/w500/5gFN6sNEuzTwx2BY2BrN795JwZl.png" style="position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); width: 160px; height: 50px; z-index: 2;"> </img></img></a><a href="go:1071585" style="position: relative; display: inline-block;"><img height="310" loading="lazy" src="https://image.tmdb.org/t/p/w500/aepxbb6d1dABkZQ1yGO8IC3zt4V.jpg" style="border-radius: 10px; display: block;" width="200"><div style="position: absolute; bottom: -10px; left: 0; width: 100%; height: 155px; background: linear-gradient(to top, #0a0a0a 20%, transparent 100%); border-radius: 0 0 10px 10px; pointer-events: none;"></div><img loading="lazy" src="https://image.tmdb.org/t/p/w500/4Wzn1bm9tjEa1xmTu9zz04wQdSb.png" style="position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); width: 160px; height: 30px; z-index: 2;"> </img></img></a>
+</div></div></div>
+
+<div class="section">
+<div class="section-title">
+<h2 class="with-icon-left">
+<img alt="" class="icon-halloween" src="https://e.top4top.io/p_3605wyi9l1.png"/></h2></div>
+<div class="horizontal-list" style="scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;">
+<div class="card-wrapper"><a class="card" href="go:1078605"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/cpf7vsRZ0MYRQcnLWteD5jK9ymT.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/cpf7vsRZ0MYRQcnLWteD5jK9ymT.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Weapons</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>7.3</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:1233413"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/4CkZl1LK6a5rXBqJB2ZP77h3N5i.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/4CkZl1LK6a5rXBqJB2ZP77h3N5i.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Sinners</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>7.5</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:1151031"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/1Q3GlCXGYWELifxANYZ5OVMRVZl.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/1Q3GlCXGYWELifxANYZ5OVMRVZl.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Bring Her Back</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>7.4</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:1100988"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/mIg1qCkVxnAlM2TK3RUF0tdEXlE.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/mIg1qCkVxnAlM2TK3RUF0tdEXlE.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">28 Years Later</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>6.7</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:1034541"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/ju10W5gl3PPK3b7TjEmVOZap51I.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/ju10W5gl3PPK3b7TjEmVOZap51I.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Terrifier 3</h3><div class="card-details-meta"><span class="year">2024</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>6.8</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:950396"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/7iMBZzVZtG0oBug4TfqDb9ZxAOa.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/7iMBZzVZtG0oBug4TfqDb9ZxAOa.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">The Gorge</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>7.7</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:986097"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/qPJzcYR2f1O1uynYBCVPPJuOiAH.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/qPJzcYR2f1O1uynYBCVPPJuOiAH.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">HIM</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>5.8</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:1100782"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/ht8Uv9QPv9y7K0RvUyJIaXOZTfd.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/ht8Uv9QPv9y7K0RvUyJIaXOZTfd.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Smile 2</h3><div class="card-details-meta"><span class="year">2024</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>6.6</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:1519168"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/47dsw1jSOV0Be5zmy7CtLhYpqU.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/47dsw1jSOV0Be5zmy7CtLhYpqU.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">The Jester 2</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>6.5</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:1010756"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/pqADzs5SJvI2jC0DThPVMuNJcWS.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/pqADzs5SJvI2jC0DThPVMuNJcWS.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">The Strangers: Chapter 2</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>6.0</span></div></div></div></div>
+</div>
+</div>
+
+<div class="modal" id="infoModal">
+<div class="modal-content">
+<span class="close-btn" id="closeModal">×</span>
+<h3 id="modalTitle">...</h3>
+<p id="movieOverview">...</p></div></div>
+<div style="overflow-x: auto; white-space: nowrap; padding: 10px 0;"><div style="display: flex; gap: 10px;">
+
+
+<a href="go:1223601"><img height="100" loading="lazy" src="https://k.top4top.io/p_3639pkynt1.jpg" style="border-radius: 10px;" width="170"/></a>
+<a href="go:1218925"><img height="100" loading="lazy" src="https://www.raed.net/img?id=1490006" style="border-radius: 10px;" width="170"/></a>
+<a href="go:272418"><img height="100" loading="lazy" src="https://www.raed.net/img?id=1490011" style="border-radius: 10px;" width="170"/></a>
+<a href="go:200875"><img height="100" loading="lazy" src="https://www.raed.net/img?id=1490015" style="border-radius: 10px;" width="170"/></a>
+<a href="go:1062722"><img height="100" loading="lazy" src="https://www.raed.net/img?id=1490016" style="border-radius: 10px;" width="170"/></a>
+<a href="go:252193"><img height="100" loading="lazy" src="https://www.raed.net/img?id=1490017" style="border-radius: 10px;" width="170"/></a>
+<a href="go:980477"><img height="100" loading="lazy" src="https://h.top4top.io/p_3503lnj0s1.jpg" style="border-radius: 10px;" width="170"/></a>
+<a href="go:1071585"><img height="100" loading="lazy" src="https://e.top4top.io/p_3485gaegl1.jpg" style="border-radius: 10px;" width="170"/></a>
+<a href="go:1061474"><img height="100" loading="lazy" src="https://k.top4top.io/p_3621rhikz1.jpg" style="border-radius: 10px;" width="170"/></a>
+<a href="go:846422"><img height="100" loading="lazy" src="https://h.top4top.io/p_3475e1bzn1.jpg" style="border-radius: 10px;" width="170"/></a>
+<a href="go:541671"><img height="100" loading="lazy" src="https://e.top4top.io/p_3475uh2ue1.jpg" style="border-radius: 10px;" width="170"/></a>
+<a href="go:90802"><img height="100" loading="lazy" src="https://g.top4top.io/p_34724iqdq1.jpg" style="border-radius: 10px;" width="170"/></a>
+<a href="go:246621"><img height="100" loading="lazy" src="https://www.raed.net/img?id=1490019" style="border-radius: 10px;" width="170"/></a>
+<a href="go:283123"><img height="100" loading="lazy" src="https://k.top4top.io/p_3460asz0d1.jpg" style="border-radius: 10px;" width="170"/></a>
+<a href="go:770906"><img height="100" loading="lazy" src="https://www.raed.net/img?id=1490020" style="border-radius: 10px;" width="170"/></a>
+<a href="go:271110"><img height="100" loading="lazy" src="https://k.top4top.io/p_3459dn6wf1.jpg" style="border-radius: 10px;" width="170"/></a>
+<a href="go:539972"><img height="100" loading="lazy" src="https://c.top4top.io/p_3446xdr7b6.png" style="border-radius: 10px;" width="170"/></a>
+<a href="go:939243"><img height="100" loading="lazy" src="https://e.top4top.io/p_344633zdv3.png" style="border-radius: 10px;" width="170"/></a>
+<a href="go:912649"><img height="100" loading="lazy" src="https://g.top4top.io/p_34465cm9v9.png" style="border-radius: 10px;" width="170"/></a>
+</div></div>
+
+<div class="section">
+<h3 class="section-title">مسلسلات</h3>
+<div class="horizontal-list" style="scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;">
+
+
+
+<div class="card-wrapper"><a class="card" href="go:106379"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/c15BtJxCXMrISLVmysdsnZUPQft.jpg" data-src-original="https://image.tmdb.org/t/p/original/c15BtJxCXMrISLVmysdsnZUPQft.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Fallout</h3><div class="card-details-meta"><span class="year">2024</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>8.2</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:225171"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/nrM2xFUfKJJEmZzd5d7kohT2G0C.jpg" data-src-original="https://image.tmdb.org/t/p/original/nrM2xFUfKJJEmZzd5d7kohT2G0C.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Pluribus</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>7.9</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:240459"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/vNByuzy60v31nmUVPMA8oAtneUK.jpg" data-src-original="https://image.tmdb.org/t/p/original/vNByuzy60v31nmUVPMA8oAtneUK.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Spartacus: House of Ashur</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>6.3</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:94997"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/oxmdHR5Ka28HAJuMmS2hk5K6QQY.jpg" data-src-original="https://image.tmdb.org/t/p/original/oxmdHR5Ka28HAJuMmS2hk5K6QQY.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">House of the Dragon</h3><div class="card-details-meta"><span class="year">2022</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>8.3</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:259886"><img class="lazy loaded" loading="lazy" src="https://image.tmdb.org/t/p/original/4wDU61HtpXbcwpgCy1xnodxKRYN.jpg" data-src-original="https://image.tmdb.org/t/p/original/4wDU61HtpXbcwpgCy1xnodxKRYN.jpg"><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">The War Between the Land and the Sea</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"><span>6.8</span></div></div></div></div><div class="card-wrapper"><a class="card" href="go:272418"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/3teWChNzKJdbfen46IdeKTygdZa.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/3teWChNzKJdbfen46IdeKTygdZa.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Robin Hood</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>7.8</span></div></div></div></div><div class="card-wrapper"><a class="card" href="go:301373"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/5HkjNXxhYNDsrJDPd9DEjk7wDqT.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/5HkjNXxhYNDsrJDPd9DEjk7wDqT.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Stranger in the Mirror</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>8.0</span></div></div></div></div><div class="card-wrapper" data-genre="دراما|جريمة" data-title="Monster: The Ed Gein Story" data-type="مسلسلات" data-year="2025"><a class="card" href="go:286801"><img alt="مسلسل: Monster: The Ed Gein Story" class="lazy loaded" data-src="https://image.tmdb.org/t/p/original/m7TxKpxdbswjPVxlFqeJ1I3UA74.jpg" src="https://image.tmdb.org/t/p/w500/m7TxKpxdbswjPVxlFqeJ1I3UA74.jpg"/></a><div class="card-details"><h3 class="card-details-title">Monster: The Ed Gein Story</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><i class="fas fa-star" style="color:#ffcc00;"></i> <span>7.3</span></div></div></div></div> <div class="card-wrapper"><a class="card" href="go:252193"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/d3K7mugQwGdWf1Q9Fnb0m8y1Mng.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/d3K7mugQwGdWf1Q9Fnb0m8y1Mng.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Last Samurai Standing</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>8.4</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:200875"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/nyy3BITeIjviv6PFIXtqvc8i6xi.jpg" loading="lazy" src="https://image.tmdb.org/t/p/w500/nyy3BITeIjviv6PFIXtqvc8i6xi.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">IT: Welcome to Derry</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>7.9</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:302658"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/3YnZMYn4ZdchxrBZYxaZ0h96lmp.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/3YnZMYn4ZdchxrBZYxaZ0h96lmp.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">قيامة اورهان</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>9.5</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:283123"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/eeFYLgiRFaG3bKx1qLyC7YOdHJz.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/eeFYLgiRFaG3bKx1qLyC7YOdHJz.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">حلم اشرف</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>7.3</span></div></div></div></div> <div class="card-wrapper"><a class="card" href="go:228689"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/opop2u7Jav6lMNL8fSBTzOeFBDz.jpg" loading="lazy" src="https://image.tmdb.org/t/p/w500/opop2u7Jav6lMNL8fSBTzOeFBDz.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Genie, Make a Wish</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>7.3</span></div></div></div></div>     
+</div></div>
+<div class="section">
+<h3 class="section-title">أعمال مميزة</h3><div class="horizontal-list" style="scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;">
+<div class="card-wrapper"><a class="card" href="go:320288"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/cCTJPelKGLhALq3r51A9uMonxKj.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/cCTJPelKGLhALq3r51A9uMonxKj.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Dark Phoenix</h3><div class="card-details-meta"><span class="year">2019</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>6.0</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:383498"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/to0spRl1CMDvyUbOnbb4fTk3VAd.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/to0spRl1CMDvyUbOnbb4fTk3VAd.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Deadpool 2</h3><div class="card-details-meta"><span class="year">2018</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>7.5</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:263115"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/fnbjcRDYn6YviCcePDnGdyAkYsB.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/fnbjcRDYn6YviCcePDnGdyAkYsB.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Logan</h3><div class="card-details-meta"><span class="year">2017</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>7.8</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:259693"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/zEqyD0SBt6HL7W9JQoWwtd5Do1T.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/zEqyD0SBt6HL7W9JQoWwtd5Do1T.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">The Conjuring 2</h3><div class="card-details-meta"><span class="year">2016</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>7.3</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:420817"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/ykUEbfpkf8d0w49pHh0AD2KrT52.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/ykUEbfpkf8d0w49pHh0AD2KrT52.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Aladdin</h3><div class="card-details-meta"><span class="year">2019</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>7.1</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:615457"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/oBgWY00bEFeZ9N25wWVyuQddbAo.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/oBgWY00bEFeZ9N25wWVyuQddbAo.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Nobody</h3><div class="card-details-meta"><span class="year">2021</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>7.9</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:438631"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/d5NXSklXo0qyIYkgV94XAgMIckC.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/d5NXSklXo0qyIYkgV94XAgMIckC.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Dune</h3><div class="card-details-meta"><span class="year">2021</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>7.8</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:274855"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/nrsx0jEaBgXq4PWo7SooSnYJTv.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/nrsx0jEaBgXq4PWo7SooSnYJTv.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Geostorm</h3><div class="card-details-meta"><span class="year">2017</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>6.1</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:76600"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/t6HIqrRAclMCA60NsSmeqe9RmNV.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/t6HIqrRAclMCA60NsSmeqe9RmNV.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Avatar: The Way of Water</h3><div class="card-details-meta"><span class="year">2022</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>7.6</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:713704"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/5ik4ATKmNtmJU6AYD0bLm56BCVM.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/5ik4ATKmNtmJU6AYD0bLm56BCVM.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Evil Dead Rise</h3><div class="card-details-meta"><span class="year">2023</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>6.9</span></div></div></div></div>
+
+<div class="card-wrapper"><a class="card" href="go:184315"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/5X3VOy9lD44VclKsWTi8gHZGjhL.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/5X3VOy9lD44VclKsWTi8gHZGjhL.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Hercules</h3><div class="card-details-meta"><span class="year">2014</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>5.8</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:284052"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/xf8PbyQcR5ucXErmZNzdKR0s8ya.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/xf8PbyQcR5ucXErmZNzdKR0s8ya.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Doctor Strange</h3><div class="card-details-meta"><span class="year">2016</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>7.4</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:566525"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/d08HqqeBQSwN8i8MEvpsZ8Cb438.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/d08HqqeBQSwN8i8MEvpsZ8Cb438.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Shang-Chi and the Legend of the Ten Rings</h3><div class="card-details-meta"><span class="year">2021</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>7.5</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:460465"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/ybrX94xQm8lXYpZAPRmwD9iIbWP.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/ybrX94xQm8lXYpZAPRmwD9iIbWP.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Mortal Kombat</h3><div class="card-details-meta"><span class="year">2021</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>7.0</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:121856"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/kDXewoEcvbn0pUvJ8W3vfkuWgHw.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/kDXewoEcvbn0pUvJ8W3vfkuWgHw.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Assassin's Creed</h3><div class="card-details-meta"><span class="year">2016</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>5.4</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:246655"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/ikA8UhYdTGpqbatFa93nIf6noSr.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/ikA8UhYdTGpqbatFa93nIf6noSr.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">X-Men: Apocalypse</h3><div class="card-details-meta"><span class="year">2016</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>6.5</span></div></div></div></div>
+</div>
+</div>
+
+
+
+
+<div class="section">
+<h3 class="section-title">افضل 10 افلام </h3>
+<div style="overflow-x: auto; white-space: nowrap; padding: 10px 0;">
+<div style="display: flex; gap: 10px;">
+<a href="go:541671"><img height="110" loading="lazy" src="https://h.top4top.io/p_3476q8jss1.jpg" style="border-radius: 10px;" width="250"/></a><a href="go:822119"><img height="110" loading="lazy" src="https://e.top4top.io/p_3621hit1t1.jpg" style="border-radius: 10px;" width="250"/></a><a href="go:1233413"><img height="110" loading="lazy" src="https://h.top4top.io/p_3476ce7z11.jpg" style="border-radius: 10px;" width="250"/></a><a href="go:533535"><img height="110" loading="lazy" src="https://d.top4top.io/p_34765a7og1.jpg" style="border-radius: 10px;" width="250"/></a><a href="go:574475"><img height="110" loading="lazy" src="https://k.top4top.io/p_3621738r41.jpg" style="border-radius: 10px;" width="250"/></a><a href="go:986056"><img height="110" loading="lazy" src="https://b.top4top.io/p_34764h3ao1.jpg" style="border-radius: 10px;" width="250"/></a><a href="go:1119878"><img height="110" loading="lazy" src="https://e.top4top.io/p_34767uu921.jpg" style="border-radius: 10px;" width="250"/></a><a href="go:1126915"><img height="110" loading="lazy" src="https://f.top4top.io/p_3476nq0so1.jpg" style="border-radius: 10px;" width="250"/></a><a href="go:558449"><img height="110" loading="lazy" src="https://k.top4top.io/p_36212jssh1.jpg" style="border-radius: 10px;" width="250"/></a><a href="go:746036"><img height="110" loading="lazy" src="https://a.top4top.io/p_3621cwdl31.jpg" style="border-radius: 10px;" width="250"/></a>
+</div> </div> </div>
+<div class="section">
+<h3 class="section-title">افلام عربية</h3>
+<div class="horizontal-list" style="scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;">
+<div class="card-wrapper"><a class="card" href="go:1170841"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/7XPZOfZcuaBawXON9kHDwrrCeJR.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/7XPZOfZcuaBawXON9kHDwrrCeJR.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Seeking Haven for Mr. Rambo</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>7.1</span></div></div></div></div> <div class="card-wrapper"><a class="card" href="go:1282404"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/rD2D51wo3jaOIYGATsfKUEAqefz.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/rD2D51wo3jaOIYGATsfKUEAqefz.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Restart</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>5.4</span></div></div></div></div><div class="card-wrapper"><a class="card" href="go:1324119"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/nS8cDLPXQZPF8pdi7Hf5tCuLYfr.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/nS8cDLPXQZPF8pdi7Hf5tCuLYfr.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">El Dashash</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>5.0</span></div></div></div></div></div> </div>
+<div class="section">
+<h3 class="section-title">افـلام هندية</h3>
+<div class="horizontal-list" style="scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;">
+<div class="card-wrapper"><a class="card" href="go:758923"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/u2YEFW5o2Y7RAw2K4hSA4TEXF3Q.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/u2YEFW5o2Y7RAw2K4hSA4TEXF3Q.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Baaghi 4</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>4.6</span></div></div></div></div> <div class="card-wrapper"><a class="card" href="go:1015981"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/bwRoU9p5GvjxgPfmIgsfcJ4ydng.jpg" loading="lazy" src="https://image.tmdb.org/t/p/w500/bwRoU9p5GvjxgPfmIgsfcJ4ydng.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Jolly LLB 3</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>7.3</span></div></div></div></div> <div class="card-wrapper"><a class="card" href="go:1311649"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/k47tmhqiUsmD6UoyoimHVQAjHx9.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/k47tmhqiUsmD6UoyoimHVQAjHx9.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Son of Sardaar 2</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>4.2</span></div></div></div></div><div class="card-wrapper"><a class="card" href="go:1109086"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/2Yc8Kl2ldPpDzLrG2M5Ddv62FXB.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/2Yc8Kl2ldPpDzLrG2M5Ddv62FXB.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">War 2</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>5.4</span></div></div></div></div><div class="card-wrapper"><a class="card" href="go:1190511"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/adYjCJGSNiL7CIaDW3g0Bcg7r2Z.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/adYjCJGSNiL7CIaDW3g0Bcg7r2Z.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Sitaare Zameen Par</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>7.1</span></div></div></div></div><div class="card-wrapper"><a class="card" href="go:1257960"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/41s42CRXafa3OuRGvCtfYPEBmse.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/41s42CRXafa3OuRGvCtfYPEBmse.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Sikandar</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>4.9</span></div></div></div></div><div class="card-wrapper"><a class="card" href="go:1143407"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/pmtev9YTlIRDo25G7lN8dzyoszn.jpg" loading="lazy" src="https://image.tmdb.org/t/p/w500/pmtev9YTlIRDo25G7lN8dzyoszn.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Sky Force</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>6.6</span></div></div></div></div><div class="card-wrapper"><a class="card" href="go:1014214"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/2JbNkHg8m7LaBy61LyrnnlenaxY.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/2JbNkHg8m7LaBy61LyrnnlenaxY.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Singham Again</h3><div class="card-details-meta"><span class="year">2024</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>4.8</span></div></div></div></div><div class="card-wrapper"><a class="card" href="go:801688"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/rstcAnBeCkxNQjNp3YXrF6IP1tW.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/rstcAnBeCkxNQjNp3YXrF6IP1tW.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Kalki 2898-AD</h3><div class="card-details-meta"><span class="year">2024</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>6.5</span></div></div></div></div><div class="card-wrapper"><a class="card" href="go:720557"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/qKLjRtoLlXJIH4vMw2V5RAOw0tk.jpg" loading="lazy" src="https://image.tmdb.org/t/p/w500/qKLjRtoLlXJIH4vMw2V5RAOw0tk.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Tiger 3</h3><div class="card-details-meta"><span class="year">2023</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>5.8</span></div></div></div></div><div class="card-wrapper"><a class="card" href="go:936622"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/ote8HmQOgmoAfqFaqVKsEdgD2q4.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/ote8HmQOgmoAfqFaqVKsEdgD2q4.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Bade Miyan Chote Miyan</h3><div class="card-details-meta"><span class="year">2024</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>6.5</span></div></div></div></div><div class="card-wrapper"><a class="card" href="go:770906"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/nlu9WbcetNFRGXXPWITr30ob7W6.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/nlu9WbcetNFRGXXPWITr30ob7W6.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Salaar: Part 1 - Ceasefire</h3><div class="card-details-meta"><span class="year">2023</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>6.7</span></div></div></div></div><div class="card-wrapper"><a class="card" href="go:472221"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/95p65Eb3meuWj8DhldOeIz3NLPF.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/95p65Eb3meuWj8DhldOeIz3NLPF.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">The Goat Life</h3><div class="card-details-meta"><span class="year">2024</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>7.2</span></div></div></div></div><div class="card-wrapper"><a class="card" href="go:763118"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/z5kngie7G0bR9CL3tcWhZLwIpIc.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/z5kngie7G0bR9CL3tcWhZLwIpIc.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Ganapath</h3><div class="card-details-meta"><span class="year">2023</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>2.5</span></div></div></div></div><div class="card-wrapper"><a class="card" href="go:360814"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/cJRPOLEexI7qp2DKtFfCh7YaaUG.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/cJRPOLEexI7qp2DKtFfCh7YaaUG.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Dangal</h3><div class="card-details-meta"><span class="year">2016</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>7.9</span></div></div></div></div><div class="card-wrapper"><a class="card" href="go:275269"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/wo5ASV73rrLr9z22P4nfqwPQPRA.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/wo5ASV73rrLr9z22P4nfqwPQPRA.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Wazir</h3><div class="card-details-meta"><span class="year">2016</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>6.7</span></div></div></div></div><div class="card-wrapper"><a class="card" href="go:44977"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/rUVTM5EQUQ2I0fcfE46AkvBYWae.jpg" loading="lazy" src="https://image.tmdb.org/t/p/w500/rUVTM5EQUQ2I0fcfE46AkvBYWae.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Dhoom 3</h3><div class="card-details-meta"><span class="year">2013</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>6.0</span></div></div></div></div>
+</div></div>
+<div class="section">
+<h3 class="section-title">عروض مميزة</h3><div class="horizontal-list" style="scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;">
+<div class="card-wrapper"><a class="card" href="go:1267319"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/pzsXKLJsZ26HUV1oCMa7WiFFQbW.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/pzsXKLJsZ26HUV1oCMa7WiFFQbW.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Mantis</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>6.1</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:1306525"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/A6aJLPhtmin9ZTWC2h7dnrMHU4z.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/A6aJLPhtmin9ZTWC2h7dnrMHU4z.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">The Elixir</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>6.0</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:507244"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/hrze9JXp2QJpc2WjLfSUtRxyYSb.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/hrze9JXp2QJpc2WjLfSUtRxyYSb.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Afterburn</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>6.9</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:1364608"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/kXFHVJqZkWtkSRlLpv2clN8KP6E.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/kXFHVJqZkWtkSRlLpv2clN8KP6E.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Anemone</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>6.3</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:604079"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/wobVTa99eW0ht6c1rNNzLkazPtR.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/wobVTa99eW0ht6c1rNNzLkazPtR.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">The Long Walk</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>6.9</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:1235746"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/5DcrN62sGAiRJxt8rXSRlSRLwIE.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/5DcrN62sGAiRJxt8rXSRlSRLwIE.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Dead of Winter</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>6.5</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:1214314"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/4XxnWZzhMC1rOzUCJpc6CzmBIQe.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/4XxnWZzhMC1rOzUCJpc6CzmBIQe.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">One More Shot</h3><div class="card-details-meta"><span class="year">2024</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>6.5</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:1236470"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/zpygCOYY1DPBkeUsrrznLRN5js5.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/zpygCOYY1DPBkeUsrrznLRN5js5.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">The Lost Bus</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>7.2</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:1296504"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/oT9JCdx018nvFBvo1YQP4uA4hl9.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/oT9JCdx018nvFBvo1YQP4uA4hl9.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Stand Your Ground</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>6.1</span></div></div></div></div>
+<div class="card-wrapper"><a class="card" href="go:1010756"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/pqADzs5SJvI2jC0DThPVMuNJcWS.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/pqADzs5SJvI2jC0DThPVMuNJcWS.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">The Strangers: Chapter 2</h3><div class="card-details-meta"><span class="year">2025</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>6.0</span></div></div></div></div>
+</div>
+</div>
+
+
+        </div>
+    </div>
+</div>
+<!-- قسم باقة محرم الحرام بدون مسافات جانبية -->
+<div class="section ramadan-section-final">
+    <h3 class="section-title"></h3>
+    <div class="cards-wrapper-final">
+        <!-- صورة خلفية كبيرة تغطي كامل العرض -->
+        <img alt="زينة رمضان" class="decorative-bg-final" loading="lazy" src="https://i.top4top.io/p_3529fgkqw1.jpg"/>
+        
+        
+        <!-- الكروت -->
+        <div class="horizontal-list-final">
+            
+            <div class="card-wrapper"><a class="card" href="go:1726"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/781tY9S76QvS799Y989pS90m7vF.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/781tY9S76QvS799Y989pS90m7vF.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Iron Man</h3><div class="card-details-meta"><span class="year">2008</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>7.9</span></div></div></div></div>
+
+<div class="card-wrapper"><a class="card" href="go:1724"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/gKzgyKW9vUcFfz5Z9pS3kvS2T10.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/gKzgyKW9vUcFfz5Z9pS3kvS2T10.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">The Incredible Hulk</h3><div class="card-details-meta"><span class="year">2008</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>6.6</span></div></div></div></div>
+
+<div class="card-wrapper"><a class="card" href="go:10138"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/6S63v4R1qYKLpp4ACQHjS806T9a.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/6S63v4R1qYKLpp4ACQHjS806T9a.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Iron Man 2</h3><div class="card-details-meta"><span class="year">2010</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>6.9</span></div></div></div></div>
+
+<div class="card-wrapper"><a class="card" href="go:10195"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/prSfS6N9GrUXH1pnsZ96p92yR7r.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/prSfS6N9GrUXH1pnsZ96p92yR7r.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Thor</h3><div class="card-details-meta"><span class="year">2011</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>7.0</span></div></div></div></div>
+
+<div class="card-wrapper"><a class="card" href="go:17711"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/vSN19SjS4S7fS778S_S0S1_S0S1.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/vSN19SjS4S7fS778S_S0S1_S0S1.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Captain America</h3><div class="card-details-meta"><span class="year">2011</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>6.9</span></div></div></div></div>
+
+<div class="card-wrapper"><a class="card" href="go:24428"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/RYMX2uQ6RlsLJo47L67pSpxpSbi.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/RYMX2uQ6RlsLJo47L67pSpxpSbi.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">The Avengers</h3><div class="card-details-meta"><span class="year">2012</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>8.0</span></div></div></div></div>
+
+<div class="card-wrapper"><a class="card" href="go:68721"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/qhPtRULDX78Zvr6u7Yn1wf7afNp.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/qhPtRULDX78Zvr6u7Yn1wf7afNp.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Iron Man 3</h3><div class="card-details-meta"><span class="year">2013</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>7.1</span></div></div></div></div>
+
+<div class="card-wrapper"><a class="card" href="go:76338"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/wp6D_S_S0S1_S0S1_S0S1_S0S1.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/wp6D_S_S0S1_S0S1_S0S1_S0S1.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Thor: Dark World</h3><div class="card-details-meta"><span class="year">2013</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>6.8</span></div></div></div></div>
+
+<div class="card-wrapper"><a class="card" href="go:100402"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/tV_S_S0S1_S0S1_S0S1_S0S1.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/tV_S_S0S1_S0S1_S0S1_S0S1.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Winter Soldier</h3><div class="card-details-meta"><span class="year">2014</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>7.8</span></div></div></div></div>
+
+<div class="card-wrapper"><a class="card" href="go:118340"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/r7_S_S0S1_S0S1_S0S1_S0S1.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/r7_S_S0S1_S0S1_S0S1_S0S1.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Guardians Vol 1</h3><div class="card-details-meta"><span class="year">2014</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>8.0</span></div></div></div></div>
+
+<div class="card-wrapper"><a class="card" href="go:99861"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/4ss_S_S0S1_S0S1_S0S1_S0S1.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/4ss_S_S0S1_S0S1_S0S1_S0S1.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Age of Ultron</h3><div class="card-details-meta"><span class="year">2015</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>7.3</span></div></div></div></div>
+
+<div class="card-wrapper"><a class="card" href="go:102899"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/7_S_S0S1_S0S1_S0S1_S0S1.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/7_S_S0S1_S0S1_S0S1_S0S1.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Ant-Man</h3><div class="card-details-meta"><span class="year">2015</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>7.3</span></div></div></div></div>
+
+<div class="card-wrapper"><a class="card" href="go:271110"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/rAG_S_S0S1_S0S1_S0S1_S0S1.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/rAG_S_S0S1_S0S1_S0S1_S0S1.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Civil War</h3><div class="card-details-meta"><span class="year">2016</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>7.8</span></div></div></div></div>
+
+<div class="card-wrapper"><a class="card" href="go:284052"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/u9_S_S0S1_S0S1_S0S1_S0S1.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/u9_S_S0S1_S0S1_S0S1_S0S1.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Doctor Strange</h3><div class="card-details-meta"><span class="year">2016</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>7.5</span></div></div></div></div>
+
+<div class="card-wrapper"><a class="card" href="go:283995"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/y4_S_S0S1_S0S1_S0S1_S0S1.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/y4_S_S0S1_S0S1_S0S1_S0S1.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Guardians Vol 2</h3><div class="card-details-meta"><span class="year">2017</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>7.6</span></div></div></div></div>
+
+<div class="card-wrapper"><a class="card" href="go:315635"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/c2_S_S0S1_S0S1_S0S1_S0S1.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/c2_S_S0S1_S0S1_S0S1_S0S1.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Spider-Man: Home</h3><div class="card-details-meta"><span class="year">2017</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>7.4</span></div></div></div></div>
+
+<div class="card-wrapper"><a class="card" href="go:284053"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/rz_S_S0S1_S0S1_S0S1_S0S1.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/rz_S_S0S1_S0S1_S0S1_S0S1.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Thor: Ragnarok</h3><div class="card-details-meta"><span class="year">2017</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>7.9</span></div></div></div></div>
+
+<div class="card-wrapper"><a class="card" href="go:284054"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/ux_S_S0S1_S0S1_S0S1_S0S1.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/ux_S_S0S1_S0S1_S0S1_S0S1.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Black Panther</h3><div class="card-details-meta"><span class="year">2018</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>7.3</span></div></div></div></div>
+
+<div class="card-wrapper"><a class="card" href="go:299536"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/7_S_S0S1_S0S1_S0S1_S0S1.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/7_S_S0S1_S0S1_S0S1_S0S1.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Infinity War</h3><div class="card-details-meta"><span class="year">2018</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>8.4</span></div></div></div></div>
+
+<div class="card-wrapper"><a class="card" href="go:299534"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/or_S_S0S1_S0S1_S0S1_S0S1.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/or_S_S0S1_S0S1_S0S1_S0S1.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Endgame</h3><div class="card-details-meta"><span class="year">2019</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>8.4</span></div></div></div></div>
+
+<div class="card-wrapper"><a class="card" href="go:533535"><img class="lazy loaded" data-src-original="https://image.tmdb.org/t/p/original/8_S_S0S1_S0S1_S0S1_S0S1.jpg" loading="lazy" src="https://image.tmdb.org/t/p/original/8_S_S0S1_S0S1_S0S1_S0S1.jpg"/><div class="card-overlay"><i class="fas fa-play play-icon"></i><span class="card-desc">Cinema Plus عالم من المتعة</span></div></a><div class="card-details"><h3 class="card-details-title">Deadpool & Wolverine</h3><div class="card-details-meta"><span class="year">2024</span><div class="rating"><img alt="IMDb" loading="lazy" src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg"/><span>7.8</span></div></div></div></div>
+</div>
+</div>
+
+
+<nav class="bottom-nav">
+    <a href="#" class="nav-item active">
+        <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M3 10.5L12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1 1V10.5z"></path>
+        </svg>
+        <span>الرئيسية</span>
+    </a>
+
+    <a href="go:2" class="nav-item">
+        <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="9"></circle>
+            <path d="M14.5 9.5L13 14.5 9 16 10.5 11 14.5 9.5z"></path>
+        </svg>
+        <span>اكتشف</span>
+    </a>
+
+    <a href="go:3" class="nav-item">
+        <img id="accountThumb" class="user-thumb" src="https://g.top4top.io/p_3574zk5bb1.jpg" alt="حسابي">
+        <span>حسابي</span>
+    </a>
+</nav>
+
+<script>
+// ===== START: NEW SLIDER JAVASCRIPT =====
+const API_KEY = "06f120992cfacd7c118f6e7086d23544";
+const FAVORITES_KEY = "favoriteMovies";
+const sliderWrapper = document.getElementById("sliderWrapper");
+const sliderSections = document.querySelectorAll(".slider-section");
+
+sliderSections.forEach(section => {
+  const MOVIE_ID = section.getAttribute("data-id");
+  const API_URL = `https://api.themoviedb.org/3/movie/${MOVIE_ID}?api_key=${API_KEY}&language=ar`;
+  const IMAGES_URL = `https://api.themoviedb.org/3/movie/${MOVIE_ID}/images?api_key=${API_KEY}`;
+  
+  Promise.all([
+    fetch(API_URL).then(res => res.json()),
+    fetch(IMAGES_URL).then(res => res.json())
+  ]).then(([data, images]) => {
+    section.innerHTML = `
+      <div class="movie-card">
+        <img class="movie-poster" id="poster-${MOVIE_ID}">
+        <div class="movie-overlay"></div>
+        <div class="movie-content">
+          <img class="movie-logo" id="logo-${MOVIE_ID}">
+          <div class="movie-info">
+            <span>${data.genres.map(g => g.name).join(" • ")}</span>
+            <span class="imdb-badge">IMDb</span>
+            <span class="rating-number">${data.vote_average.toFixed(1)}</span>
+            <span>/10</span>
+          </div>
+          <div class="movie-actions">
+            <button class="action-btn" id="info-${MOVIE_ID}"><i class="fa-solid fa-circle-info"></i></button>
+            <button class="watch-btn" id="watch-${MOVIE_ID}"><i class="fa-solid fa-play"></i><span>ابدأ المشاهدة</span></button>
+            <button class="action-btn" id="fav-${MOVIE_ID}"><i class="fa-solid fa-plus"></i></button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const posterBase = `https://image.tmdb.org/t/p/original`;
+    const posterEl = section.querySelector(`#poster-${MOVIE_ID}`);
+    const img = new Image();
+    img.src = `${posterBase}${data.backdrop_path}`;
+    img.onload = () => {
+        posterEl.src = img.src;
+        posterEl.classList.add("loaded");
+    };
+
+    const logo = images.logos.find(l => l.iso_639_1 === "ar") || images.logos.find(l => l.iso_639_1 === "en");
+    const logoEl = section.querySelector(`#logo-${MOVIE_ID}`);
+    if (logo) {
+      const logoImg = new Image();
+      logoImg.src = `https://image.tmdb.org/t/p/original${logo.file_path}`;
+      logoImg.onload = () => {
+          logoEl.src = logoImg.src;
+          logoEl.classList.add("loaded");
+      };
+    } else {
+        logoEl.style.display = "none";
+    }
+
+    section.querySelector(`#watch-${MOVIE_ID}`).addEventListener("click", () => {
+      window.location.href = `go:${data.id}`;
+    });
+
+    const favBtn = section.querySelector(`#fav-${MOVIE_ID}`);
+    const favIcon = favBtn.querySelector("i");
+    const favorites = JSON.parse(localStorage.getItem(FAVORITES_KEY)) || [];
+    let isFav = favorites.includes(data.id);
+
+    function updateFav() {
+      if (isFav) {
+        favBtn.classList.add("added");
+        favIcon.classList.replace("fa-plus", "fa-check");
+      } else {
+        favBtn.classList.remove("added");
+        favIcon.classList.replace("fa-check", "fa-plus");
+      }
+    }
+    updateFav();
+
+    favBtn.addEventListener("click", () => {
+      isFav = !isFav;
+      if (isFav) {
+        favorites.push(data.id);
+      } else {
+        favorites.splice(favorites.indexOf(data.id), 1);
+      }
+      localStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites));
+      updateFav();
+    });
+
+    section.querySelector(`#info-${MOVIE_ID}`).addEventListener("click", () => {
+      document.getElementById("modalTitle").textContent = data.title;
+      document.getElementById("movieOverview").textContent = data.overview || "لا يوجد وصف متاح حالياً.";
+      document.getElementById("infoModal").style.display = "block";
+    });
+
+  }).catch(err => console.error("Slider Error:", err));
+});
+
+document.getElementById("closeModal").addEventListener("click", () => {
+  document.getElementById("infoModal").style.display = "none";
+});
+window.addEventListener("click", e => {
+  if (e.target === document.getElementById("infoModal")) {
+    document.getElementById("infoModal").style.display = "none";
+  }
+});
+
+// ===== تحديث صورة الحساب من التخزين المحلي =====
+document.addEventListener("DOMContentLoaded", function() {
+    const accountThumb = document.getElementById('accountThumb');
+    if (accountThumb) {
+        const data = JSON.parse(localStorage.getItem('profileData')) || {};
+        if (data.profilePic) {
+            accountThumb.src = data.profilePic;
+        }
+    }
+});
+
+// ===== الكود الخاص بالبحث =====
+document.addEventListener('DOMContentLoaded', function() {
+    const searchModal = document.getElementById("searchModal");
+    const closeSearchModal = document.getElementById("closeSearchModal");
+    
+    if (searchModal && closeSearchModal) {
+        closeSearchModal.addEventListener("click", function() {
+            searchModal.style.display = "none";
+        });
+        
+        window.addEventListener("click", function(e) {
+            if (e.target == searchModal) {
+                searchModal.style.display = "none";
+            }
+        });
+    }
+
+    const modalSearchInput = document.getElementById("modalSearchInput");
+    if (modalSearchInput) {
+        modalSearchInput.addEventListener("input", function() {
+            const query = this.value.toLowerCase().trim();
+            const resultsContainer = document.getElementById("modalSearchResults");
+            resultsContainer.innerHTML = "";
+            
+            if(query === "") return;
+            
+            const movies = document.querySelectorAll(".section .horizontal-list .card-wrapper");
+            movies.forEach(movie => {
+                const titleElem = movie.querySelector(".card-details-title");
+                if (titleElem && titleElem.textContent.toLowerCase().includes(query)) {
+                    const metaElem = movie.querySelector(".card-details-meta");
+                    const imgElem = movie.querySelector("img");
+                    const imgSrc = imgElem ? (imgElem.getAttribute("data-src") || imgElem.getAttribute("src")) : '';
+                    const link = movie.querySelector("a").getAttribute("href");
+                    const yearElem = metaElem.querySelector(".year");
+                    const ratingElem = metaElem.querySelector(".rating span");
+                    const yearText = yearElem ? yearElem.textContent : "";
+                    const ratingText = ratingElem ? ratingElem.textContent : "";
+                    
+                    const imdbLogo = `<img src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg" alt="IMDb" style="width:30px; height:15px; vertical-align:middle; margin-left:4px;">`;
+                    
+                    const resultItem = document.createElement("div");
+                    resultItem.classList.add("search-result-item");
+                    resultItem.innerHTML = `
+                        <img src="${imgSrc}" alt="${titleElem.textContent}">
+                        <div class="result-info">
+                            <h4>${titleElem.textContent}</h4>
+                            <p>${yearText} | ${ratingText} ${imdbLogo}</p>
+                        </div>
+                    `;
+                    resultItem.addEventListener("click", () => {
+                        window.location.href = link;
+                    });
+                    resultsContainer.appendChild(resultItem);
+                }
+            });
+            
+            if(resultsContainer.innerHTML === ""){
+                resultsContainer.innerHTML = "<p style='text-align:center;color:#ccc;'>لا توجد نتائج</p>";
+            }
+        });
+    }
+});
+
+// ===== كود الكاش للصور =====
+(function() {
+  const CACHE_DAYS = 5; 
+  const CACHE_KEY = "refresh_time_v1";
+  const now = Date.now();
+  const last = localStorage.getItem(CACHE_KEY);
+  const fiveDays = CACHE_DAYS * 24 * 60 * 60 * 1000;
+  const refresh = !last || (now - parseInt(last) > fiveDays);
+
+  if (refresh) {
+    console.log("♻️ تحديث كاش الصور...");
+    localStorage.setItem(CACHE_KEY, now);
+  }
+
+  window.addEventListener("load", function() {
+    document.querySelectorAll("img").forEach(img => {
+      const src = img.src;
+      if (!src) return;
+      if (refresh) {
+        const cleanSrc = src.split("?")[0];
+        img.src = cleanSrc + "?v=" + now;
+      }
+    });
+  });
+})();
+
+// ===== نظام التخزين المؤقت للمحتوى =====
+class AutoCinemaCache {
+    constructor() {
+        this.STORAGE_KEY = 'cinemaPlus_data';
+        this.CACHE_DURATION = 10 * 24 * 60 * 60 * 1000; 
+        this.init();
+    }
+
+    async init() {
+        console.log('🚀 بدء نظام التخزين...');
+        
+        const cachedData = this.getCachedData();
+        
+        if (cachedData && !this.isCacheExpired(cachedData)) {
+            console.log('✅ استخدام البيانات المخزنة');
+            this.renderFromCache(cachedData);
+        } else {
+            console.log('📥 جاري حفظ البيانات الجديدة');
+            await this.fetchAndCacheData();
+        }
+    }
+
+    getCachedData() {
+        try {
+            return JSON.parse(localStorage.getItem(this.STORAGE_KEY));
+        } catch {
+            return null;
+        }
+    }
+
+    isCacheExpired(cachedData) {
+        if (!cachedData?.timestamp) return true;
+        return (Date.now() - new Date(cachedData.timestamp).getTime()) > this.CACHE_DURATION;
+    }
+
+    async fetchAndCacheData() {
+        const dataToStore = {
+            recent: this.extractRecentMovies(),
+            episodes: this.extractEpisodes(),
+            series: this.extractSeriesData(),
+            timestamp: new Date().toISOString()
+        };
+        
+        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(dataToStore));
+        console.log('💾 تم حفظ البيانات بنجاح');
+    }
+
+    extractRecentMovies() {
+        const movies = [];
+        document.querySelectorAll('.card-wrapper').forEach(card => {
+            const title = card.querySelector('.card-details-title')?.textContent;
+            const image = card.querySelector('.card img')?.src;
+            if (title && image) {
+                movies.push({
+                    title: title.trim(),
+                    image: image,
+                    link: card.querySelector('.card')?.href
+                });
+            }
+        });
+        return movies;
+    }
+
+    extractEpisodes() {
+        const episodes = [];
+        document.querySelectorAll('.episode-card').forEach(card => {
+            const title = card.querySelector('.title')?.textContent;
+            const image = card.querySelector('.thumb img')?.src;
+            if (title && image) {
+                episodes.push({
+                    title: title.trim(),
+                    image: image,
+                    link: card.href
+                });
+            }
+        });
+        return episodes;
+    }
+
+    extractSeriesData() {
+        const series = [];
+        const seriesContainer = document.querySelectorAll('.horizontal-list')[2];
+        if (seriesContainer) {
+            seriesContainer.querySelectorAll('.card-wrapper').forEach(card => {
+                const title = card.querySelector('.card-details-title')?.textContent;
+                const image = card.querySelector('.card img')?.src;
+                if (title && image) {
+                    series.push({
+                        title: title.trim(),
+                        image: image,
+                        link: card.querySelector('.card')?.href
+                    });
+                }
+            });
+        }
+        return series;
+    }
+
+    renderFromCache(cachedData) {
+        console.log('🔄 جاري عرض البيانات المخزنة');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    new AutoCinemaCache();
+});
+</script>
+</body>
+</html>
